@@ -711,7 +711,7 @@ form.addEventListener("submit", async (e) => {
   const champs = champsDemande(client, ref);
 
   try {
-    await window.SITE.envoyer(champs, pdf);
+    await window.SITE.envoyer(champs);
     msg.className = "message-form ok";
     msg.innerHTML = `✅ <b>Votre demande a bien été envoyée</b> (réf. ${ref}).<br>Vous allez recevoir un e-mail de confirmation, et nous vous recontactons très vite.` +
       (pdf ? `<br>Vous pouvez garder une copie de votre projet avec le bouton « Télécharger le PDF ».` : "");
