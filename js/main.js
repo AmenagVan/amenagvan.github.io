@@ -99,10 +99,8 @@ document.querySelectorAll('[data-sujet]').forEach((lien) =>
   })
 );
 
-// ---- Envoi : ouvre la messagerie avec un e-mail pré-rempli ----
-// (Pas de serveur pour l'instant. Plus tard : brancher un service
-//  comme Formspree ou l'appli de gestion pour recevoir les demandes.)
-form.addEventListener("submit", (e) => {
+// ---- Envoi automatique par e-mail (voir SITE.envoyer dans js/config.js) ----
+form.addEventListener("submit", async (e) => {
   e.preventDefault();
   zoneMessage.className = "message-form";
 
@@ -116,26 +114,40 @@ form.addEventListener("submit", (e) => {
 
   const d = new FormData(form);
   const titreSujet = sujet.options[sujet.selectedIndex].text;
-  const lignes = [
-    `Type de demande : ${titreSujet}`,
-    `Nom : ${d.get("nom")}`,
-    `E-mail : ${d.get("email")}`,
-    `Téléphone : ${d.get("tel") || "-"}`,
-  ];
+  const champs = {
+    _subject: `${titreSujet} — ${d.get("nom")} (site Aménag'Van)`,
+    _autoresponse: `Bonjour ${d.get("nom")},\n\nMerci pour votre message ! Nous l'avons bien reçu et nous vous répondons très vite.\n\nAménag'Van · Mauléon (79)\n${CONFIG.tel} · ${CONFIG.email}`,
+    "Type de demande": titreSujet,
+    "Nom": d.get("nom"),
+    email: d.get("email"),
+    "Téléphone": d.get("tel") || "—",
+  };
   if (!form.querySelector(".bloc-devis").hidden) {
     const presta = d.getAll("prestations");
-    lignes.push(
-      `Véhicule : ${d.get("vehicule") || "-"}`,
-      `État actuel : ${d.get("etat")}`,
-      `Prestations : ${presta.length ? presta.join(", ") : "-"}`
-    );
+    champs["Véhicule"] = d.get("vehicule") || "—";
+    champs["État actuel"] = d.get("etat");
+    champs["Prestations"] = presta.length ? presta.join(", ") : "—";
   }
-  lignes.push("", d.get("message"));
+  champs["Message"] = d.get("message");
 
-  const objet = `${titreSujet} — ${d.get("nom")}`;
-  window.location.href =
-    `mailto:${CONFIG.email}?subject=${encodeURIComponent(objet)}&body=${encodeURIComponent(lignes.join("\n"))}`;
-
-  zoneMessage.textContent = "Votre messagerie s'ouvre avec la demande pré-remplie : il ne reste plus qu'à l'envoyer. Merci !";
-  zoneMessage.classList.add("ok");
+  const bouton = form.querySelector('button[type="submit"]');
+  bouton.disabled = true;
+  bouton.textContent = "Envoi en cours…";
+  try {
+    await CONFIG.envoyer(champs);
+    zoneMessage.innerHTML = "✅ <b>Votre message a bien été envoyé.</b> Vous allez recevoir un e-mail de confirmation, et nous vous répondons très vite.";
+    zoneMessage.classList.add("ok");
+    bouton.textContent = "Message envoyé ✓";
+    form.reset();
+    majFormulaire();
+  } catch (err) {
+    console.error(err);
+    // Secours : ouvre la messagerie du visiteur avec le message pré-rempli
+    const corps = Object.entries(champs).filter(([k]) => !k.startsWith("_")).map(([k, v]) => `${k} : ${v}`).join("\n");
+    window.location.href = `mailto:${CONFIG.email}?subject=${encodeURIComponent(champs._subject)}&body=${encodeURIComponent(corps)}`;
+    zoneMessage.textContent = `L'envoi automatique n'a pas fonctionné : votre messagerie s'ouvre avec le message déjà rempli. Vous pouvez aussi appeler le ${CONFIG.tel}.`;
+    zoneMessage.classList.add("erreur");
+    bouton.disabled = false;
+    bouton.textContent = "Envoyer ma demande";
+  }
 });

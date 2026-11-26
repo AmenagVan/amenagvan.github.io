@@ -441,7 +441,7 @@ function nouvelleReference() {
   return `EN-${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${Math.floor(1000 + Math.random() * 9000)}`;
 }
 
-async function genererPdf(client) {
+async function genererPdf(client, telecharger = true) {
   if (!window.jspdf) throw new Error("jsPDF indisponible");
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit: "mm", format: "a4" });
@@ -617,8 +617,9 @@ async function genererPdf(client) {
     doc.text(`Réf. ${ref} · page ${i}/${nb}`, W - M, 291, { align: "right" });
   }
 
-  doc.save(`Projet-van-${ref}.pdf`);
-  return ref;
+  const nom = `Projet-van-${ref}.pdf`;
+  if (telecharger) doc.save(nom);
+  return { ref, nom, blob: doc.output("blob") };
 }
 
 /* ----------------------------------------------------------
@@ -638,14 +639,13 @@ function lireClient() {
   return { nom, email: el.email.value.trim(), tel: el.tel.value.trim(), idees: el.idees.value.trim() };
 }
 
-async function pdfAvecMessage(client) {
+// Crée le PDF ; renvoie null (et l'indique) s'il ne peut pas être créé
+async function pdfAvecMessage(client, telecharger) {
   majAffichage();
   try {
-    return await genererPdf(client);
+    return await genererPdf(client, telecharger);
   } catch (err) {
     console.error(err);
-    msg.textContent = "Le PDF n'a pas pu être créé (connexion internet nécessaire). Vous pouvez quand même envoyer votre demande.";
-    msg.classList.add("erreur");
     return null;
   }
 }
@@ -653,37 +653,77 @@ async function pdfAvecMessage(client) {
 $("btn-pdf").addEventListener("click", async () => {
   const client = lireClient();
   if (!client) return;
-  const ref = await pdfAvecMessage(client);
-  if (ref) {
-    msg.textContent = `Votre récapitulatif ${ref} a été téléchargé.`;
-    msg.classList.add("ok");
-  }
+  const pdf = await pdfAvecMessage(client, true);
+  msg.className = "message-form " + (pdf ? "ok" : "erreur");
+  msg.textContent = pdf
+    ? `Votre récapitulatif ${pdf.ref} a été téléchargé.`
+    : "Le PDF n'a pas pu être créé (connexion internet nécessaire).";
 });
+
+// Tout le contenu de la demande, champ par champ, pour l'e-mail reçu par l'atelier
+function champsDemande(client, ref) {
+  const d = dernier;
+  const c = {
+    _subject: `Nouvelle demande ${d.reparation ? "de réparation" : "de devis"} — ${client.nom} — ${ref}`,
+    _autoresponse: `Bonjour ${client.nom},\n\nMerci pour votre demande (réf. ${ref}) ! Nous l'avons bien reçue et nous vous recontactons très vite pour en parler.\n\nAménag'Van · Mauléon (79)\n${window.SITE.tel} · ${window.SITE.email}`,
+    "Référence": ref,
+    "Nom": client.nom,
+    email: client.email,
+    "Téléphone": client.tel || "—",
+    "Type de demande": d.reparation ? "Réparation" : LIBELLE.projet[d.s.projet],
+  };
+  if (d.reparation) {
+    c["Véhicule"] = `${LIBELLE.gabarit[d.s.gabarit]}${d.s.modele ? " · " + d.s.modele : ""}`;
+  } else {
+    c["Main d'œuvre estimée"] = `${euros(d.prix.mo)} (${d.prix.heures} h × ${euros(T.taux)})`;
+    c["Matériel estimé"] = fourchette(d.prix.mat);
+    c["Budget global"] = fourchette(d.prix.total);
+    recapLignes(d.s, d.elec, d.eau, d.okVasp, d.vasp.length).filter(([, v]) => v).forEach(([k, v]) => (c[k] = v));
+    c["Détail du chiffrage"] = d.prix.lignes
+      .map((l) => `${l.poste} : ${l.h ? `${l.h} h = ${euros(l.mo)}` : "pose incluse"}${l.mat[1] ? ` · matériel ${fourchette(l.mat)}` : ""}`)
+      .concat(d.prix.externes.map((e) => `${e.poste} (organisme) : ${fourchette(e.mat)}`))
+      .join("\n");
+    const manques = d.vasp.filter((v) => !v.ok);
+    if (manques.length) c["Points VASP à revoir"] = manques.map((v) => `${v.txt} : ${v.detail}`).join("\n");
+  }
+  c["Message du client"] = client.idees || "—";
+  return c;
+}
+
+// Solution de secours si l'envoi automatique échoue : messagerie du visiteur
+function envoiParMessagerie(champs) {
+  const corps = Object.entries(champs).filter(([k]) => !k.startsWith("_")).map(([k, v]) => `${k} : ${v}`).join("\n");
+  window.location.href = `mailto:${window.SITE.email}?subject=${encodeURIComponent(champs._subject)}&body=${encodeURIComponent(corps)}`;
+}
 
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
   const client = lireClient();
   if (!client) return;
-  const ref = await pdfAvecMessage(client);
-  const d = dernier;
+  const bouton = form.querySelector('button[type="submit"]');
+  bouton.disabled = true;
+  bouton.textContent = "Envoi en cours…";
+  msg.className = "message-form";
+  msg.textContent = "";
 
-  const lignes = [`Bonjour,`, "", `Voici ma demande de ${d.reparation ? "réparation" : "devis"}${ref ? ` (réf. ${ref})` : ""}.`, ""];
-  if (d.reparation) {
-    lignes.push(`Véhicule : ${LIBELLE.gabarit[d.s.gabarit]}${d.s.modele ? " · " + d.s.modele : ""}`);
-  } else {
-    lignes.push(`Main d'œuvre estimée : ${euros(d.prix.mo)} (${d.prix.heures} h)`,
-      `Matériel estimé : ${fourchette(d.prix.mat)}`,
-      `Budget global : ${fourchette(d.prix.total)}`, "");
-    recapLignes(d.s, d.elec, d.eau, d.okVasp, d.vasp.length).filter(([, v]) => v).forEach(([k, v]) => lignes.push(`${k} : ${v}`));
+  const pdf = await pdfAvecMessage(client, false);
+  const ref = pdf ? pdf.ref : nouvelleReference();
+  const champs = champsDemande(client, ref);
+
+  try {
+    await window.SITE.envoyer(champs, pdf);
+    msg.className = "message-form ok";
+    msg.innerHTML = `✅ <b>Votre demande a bien été envoyée</b> (réf. ${ref}).<br>Vous allez recevoir un e-mail de confirmation, et nous vous recontactons très vite.` +
+      (pdf ? `<br>Vous pouvez garder une copie de votre projet avec le bouton « Télécharger le PDF ».` : "");
+    bouton.textContent = "Demande envoyée ✓";
+  } catch (err) {
+    console.error(err);
+    envoiParMessagerie(champs);
+    msg.className = "message-form erreur";
+    msg.innerHTML = `L'envoi automatique n'a pas fonctionné. Votre messagerie s'ouvre avec la demande déjà remplie : il suffit d'appuyer sur Envoyer.<br>Vous pouvez aussi nous appeler au ${window.SITE.tel}.`;
+    bouton.disabled = false;
+    bouton.textContent = "Envoyer ma demande";
   }
-  lignes.push("", `Message : ${client.idees || "-"}`, "", `${client.nom}`, client.email, client.tel);
-  if (ref) lignes.push("", `(Le récapitulatif PDF ${ref} est joint à ce message.)`);
-
-  window.location.href = `mailto:${window.SITE.email}?subject=${encodeURIComponent(`Projet van — ${client.nom}${ref ? " — " + ref : ""}`)}&body=${encodeURIComponent(lignes.join("\n"))}`;
-  msg.className = "message-form ok";
-  msg.innerHTML = ref
-    ? `Votre récapitulatif <b>${ref}</b> vient d'être téléchargé et votre messagerie s'ouvre.<br>Pensez à <b>joindre le PDF</b> à l'e-mail avant de l'envoyer. Merci !`
-    : "Votre messagerie s'ouvre avec votre demande : il ne reste plus qu'à envoyer. Merci !";
 });
 
 document.getElementById("annee").textContent = new Date().getFullYear();
