@@ -9,8 +9,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css">
-  <link rel="stylesheet" href="css/configurateur.css">
+  <link rel="stylesheet" href="css/style.css?v=3">
+  <link rel="stylesheet" href="css/configurateur.css?v=3">
 </head>
 <body class="page-config">
 
@@ -245,11 +245,10 @@
     <div class="bilan-tech" id="bilan-eau"></div>
 
     <h3>Chauffage</h3>
-    <div class="tuiles tuiles--4">
+    <div class="tuiles tuiles--3">
       <label class="tuile"><input type="radio" name="chauffage" value="aucun"><span class="t-ico">🚫</span><strong>Aucun</strong><small>Usage estival uniquement</small></label>
-      <label class="tuile"><input type="radio" name="chauffage" value="diesel" checked><span class="t-ico">⛽</span><strong>Diesel</strong><small>Utilise le gasoil du réservoir. Le plus courant.</small></label>
-      <label class="tuile"><input type="radio" name="chauffage" value="gaz"><span class="t-ico">🔥</span><strong>Gaz</strong><small>Silencieux, avec une bouteille de gaz</small></label>
-      <label class="tuile"><input type="radio" name="chauffage" value="combi"><span class="t-ico">♨️</span><strong>Combiné</strong><small>Chauffage + eau chaude dans un seul appareil</small></label>
+      <label class="tuile"><input type="radio" name="chauffage" value="gaz" checked><span class="t-ico">🔥</span><strong>Chauffage gaz</strong><small>Air pulsé silencieux, sur bouteille de gaz</small></label>
+      <label class="tuile"><input type="radio" name="chauffage" value="combi"><span class="t-ico">♨️</span><strong>Combiné gaz</strong><small>Chauffage et eau chaude dans un seul appareil</small></label>
     </div>
 
     <h3>Eau chaude</h3>
@@ -366,8 +365,8 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
-<script src="js/config.js"></script>
-<script src="js/tarifs.js"></script>
-<script src="js/configurateur.js"></script>
+<script src="js/config.js?v=3"></script>
+<script src="js/tarifs.js?v=3"></script>
+<script src="js/configurateur.js?v=3"></script>
 </body>
 </html>

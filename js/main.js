@@ -37,7 +37,7 @@ document.getElementById("annee").textContent = new Date().getFullYear();
     ["Plomberie", "Pompe, évier, robinet, réservoirs eau propre et eaux grises", T.plomberie.h, T.plomberie.mat],
     ["Douche intérieure", "Receveur, étanchéité, mitigeur, évacuation", T.douche.interieure.h, T.douche.interieure.mat],
     ["Installation gaz", "Coffre ventilé, détendeur, cuivre, détecteur", T.gaz.h, T.gaz.mat],
-    ["Chauffage diesel", "Pose, prise d'air, réservoir, mise en service", T.chauffage.diesel.h, T.chauffage.diesel.mat],
+    ["Chauffage gaz", "Pose, conduit, raccordement gaz, mise en service", T.chauffage.gaz.h, T.chauffage.gaz.mat],
     ["Chauffe-eau (ballon)", "Pose et raccordement", T.eauChaude.boiler.h, T.eauChaude.boiler.mat],
     ["Lanterneau 40 × 40", "Découpe, cadre, étanchéité", T.lanterneau.h, T.lanterneau.mat],
     ["Fenêtre", "Découpe, cadre, étanchéité", T.fenetre.h, T.fenetre.mat],

@@ -22,7 +22,7 @@ const LIBELLE = {
   wc: { aucun: "aucun", sec: "toilettes sèches", cassette: "WC cassette" },
   douche: { exterieure: "douchette extérieure", interieure: "douche intérieure" },
   froid: { aucun: "pas de frigo", frigo: "frigo à compression", glaciere: "glacière à compression" },
-  chauffage: { aucun: "Aucun", diesel: "Diesel", gaz: "Gaz", combi: "Combiné chauffage + eau chaude" },
+  chauffage: { aucun: "Aucun", gaz: "Gaz", combi: "Combiné gaz (chauffage + eau chaude)" },
   eauChaude: { aucune: "aucune", boiler: "ballon 12 V / 230 V", gaz: "chauffe-eau gaz", combi: "par le combiné" },
   convertisseur: { aucun: "aucun", petit: "1 000 W", gros: "2 000 W et plus" },
   modules: { lit: "Lit", cuisine: "Meuble cuisine", rangements: "Rangements", table: "Table", electricite: "Électricité", plomberie: "Plomberie" },
@@ -84,7 +84,7 @@ function lire() {
   s.avecElec = s.a("electricite");
   s.avecEau = s.a("plomberie") || s.a("cuisine") || s.douches.length > 0;
   s.texteDouches = s.douches.length ? s.douches.map((d) => LIBELLE.douche[d]).join(" et ") : "aucune";
-  s.avecGaz = s.cuisson === "gaz" || s.chauffage === "gaz" || s.eauChaude === "gaz";
+  s.avecGaz = s.cuisson === "gaz" || s.chauffage !== "aucun" || s.eauChaude === "gaz";   // chauffages tous au gaz
   s.placesRoute = (s.cabine3 ? 3 : 2) + s.banquette;
   return s;
 }
@@ -375,7 +375,11 @@ function aller(n, defiler = true) {
   // Garde l'étape active visible dans la barre (mobile)
   const ol = $("liste-etapes"), li = puces[n - 1];
   ol.scrollLeft = li.offsetLeft - (ol.clientWidth - li.clientWidth) / 2;
-  if (defiler) document.querySelector(".progression").scrollIntoView({ behavior: "smooth", block: "start" });
+  // Remonte en haut du formulaire, sous l'en-tête et la barre d'étapes (qui sont collés en haut)
+  if (defiler) {
+    const decalage = document.querySelector(".entete").offsetHeight + document.querySelector(".progression").offsetHeight + 12;
+    window.scrollTo({ top: form.getBoundingClientRect().top + window.scrollY - decalage, behavior: "smooth" });
+  }
 }
 
 $("suivant").addEventListener("click", () => {

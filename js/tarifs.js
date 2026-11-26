@@ -65,9 +65,8 @@ window.TARIFS = {
   },
   gaz:           { h: 10, mat: [200, 450] },   // coffre ventilé, détendeur, cuivre, robinets, détecteur
   chauffage: {
-    diesel: { h: 10, mat: [600, 1400] },
     gaz:    { h: 12, mat: [1100, 1600] },
-    combi:  { h: 18, mat: [2200, 3500] },
+    combi:  { h: 18, mat: [2000, 3000] },  // type Truma Combi 4 / 6 (gaz)
   },
   eauChaude: {
     boiler: { h: 6, mat: [300, 600] },
