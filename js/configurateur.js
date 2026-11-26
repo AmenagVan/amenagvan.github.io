@@ -665,7 +665,6 @@ function champsDemande(client, ref) {
   const d = dernier;
   const c = {
     _subject: `Nouvelle demande ${d.reparation ? "de réparation" : "de devis"} — ${client.nom} — ${ref}`,
-    _autoresponse: `Bonjour ${client.nom},\n\nMerci pour votre demande (réf. ${ref}) ! Nous l'avons bien reçue et nous vous recontactons très vite pour en parler.\n\nAménag'Van · Mauléon (79)\n${window.SITE.tel} · ${window.SITE.email}`,
     "Référence": ref,
     "Nom": client.nom,
     email: client.email,
@@ -713,7 +712,7 @@ form.addEventListener("submit", async (e) => {
   try {
     await window.SITE.envoyer(champs);
     msg.className = "message-form ok";
-    msg.innerHTML = `✅ <b>Votre demande a bien été envoyée</b> (réf. ${ref}).<br>Vous allez recevoir un e-mail de confirmation, et nous vous recontactons très vite.` +
+    msg.innerHTML = `✅ <b>Votre demande a bien été envoyée</b> (réf. ${ref}).<br>Nous vous recontactons très vite, par téléphone ou par e-mail.` +
       (pdf ? `<br>Vous pouvez garder une copie de votre projet avec le bouton « Télécharger le PDF ».` : "");
     bouton.textContent = "Demande envoyée ✓";
   } catch (err) {

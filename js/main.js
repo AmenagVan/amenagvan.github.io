@@ -116,7 +116,6 @@ form.addEventListener("submit", async (e) => {
   const titreSujet = sujet.options[sujet.selectedIndex].text;
   const champs = {
     _subject: `${titreSujet} — ${d.get("nom")} (site Aménag'Van)`,
-    _autoresponse: `Bonjour ${d.get("nom")},\n\nMerci pour votre message ! Nous l'avons bien reçu et nous vous répondons très vite.\n\nAménag'Van · Mauléon (79)\n${CONFIG.tel} · ${CONFIG.email}`,
     "Type de demande": titreSujet,
     "Nom": d.get("nom"),
     email: d.get("email"),
@@ -135,7 +134,7 @@ form.addEventListener("submit", async (e) => {
   bouton.textContent = "Envoi en cours…";
   try {
     await CONFIG.envoyer(champs);
-    zoneMessage.innerHTML = "✅ <b>Votre message a bien été envoyé.</b> Vous allez recevoir un e-mail de confirmation, et nous vous répondons très vite.";
+    zoneMessage.innerHTML = "✅ <b>Votre message a bien été envoyé.</b> Nous vous répondons très vite.";
     zoneMessage.classList.add("ok");
     bouton.textContent = "Message envoyé ✓";
     form.reset();
