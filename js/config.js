@@ -6,7 +6,7 @@ window.SITE = {
   tel: "07 57 57 03 90",
   // Clé d'accès Web3Forms (reçue par e-mail sur web3forms.com).
   // Ce n'est pas un mot de passe : elle peut être visible dans le code.
-  web3formsKey: "",
+  web3formsKey: "bb2bcd9a-a4c6-4c42-aebf-2e8eb74dbe2b",
 };
 
 /* ----------------------------------------------------------
