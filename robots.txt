@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://amenagvan.github.io/sitemap.xml
