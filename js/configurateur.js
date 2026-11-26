@@ -20,7 +20,8 @@ const LIBELLE = {
   lit: { fixe: "Lit fixe arrière", convertible: "Banquette convertible", pavillon: "Lit de pavillon", superposes: "Lits superposés" },
   cuisson: { aucune: "aucune", gaz: "gaz", induction: "induction" },
   wc: { aucun: "aucun", sec: "toilettes sèches", cassette: "WC cassette" },
-  douche: { aucune: "aucune", exterieure: "douchette extérieure", interieure: "douche intérieure" },
+  douche: { exterieure: "douchette extérieure", interieure: "douche intérieure" },
+  froid: { aucun: "pas de frigo", frigo: "frigo à compression", glaciere: "glacière à compression" },
   chauffage: { aucun: "Aucun", diesel: "Diesel", gaz: "Gaz", combi: "Combiné chauffage + eau chaude" },
   eauChaude: { aucune: "aucune", boiler: "ballon 12 V / 230 V", gaz: "chauffe-eau gaz", combi: "par le combiné" },
   convertisseur: { aucun: "aucun", petit: "1 000 W", gros: "2 000 W et plus" },
@@ -49,17 +50,18 @@ function lire() {
     adultes: +el.adultes.value,
     enfants: +el.enfants.value,
     saison: el.saison.value,
-    jours: +el.jours.value,
+    joursElec: +el.joursElec.value,
+    joursEau: +el.joursEau.value,
     modules: coches("modules").map((c) => c.value),
     lit: el.lit.value,
     cabine3: el.cabine3.checked,
     pivotants: el.pivotants.checked,
     banquette: +el.banquette.value,
     cuisson: el.cuisson.value,
-    frigo: el.frigo.checked,
+    froid: el.froid.value,
     teletravail: el.teletravail.checked,
     wc: el.wc.value,
-    douche: el.douche.value,
+    douches: coches("douches").map((c) => c.value),
     extras: coches("conso").map((c) => ({ nom: c.dataset.nom, wh: +c.value })),
     dcdc: el.dcdc.checked,
     prise230: el.prise230.checked,
@@ -80,7 +82,8 @@ function lire() {
   s.a = (m) => s.complet || s.modules.includes(m);   // ce module est-il prévu ?
   if (s.chauffage === "combi") s.eauChaude = "combi";
   s.avecElec = s.a("electricite");
-  s.avecEau = s.a("plomberie") || s.a("cuisine") || s.douche !== "aucune";
+  s.avecEau = s.a("plomberie") || s.a("cuisine") || s.douches.length > 0;
+  s.texteDouches = s.douches.length ? s.douches.map((d) => LIBELLE.douche[d]).join(" et ") : "aucune";
   s.avecGaz = s.cuisson === "gaz" || s.chauffage === "gaz" || s.eauChaude === "gaz";
   s.placesRoute = (s.cabine3 ? 3 : 2) + s.banquette;
   return s;
@@ -91,7 +94,8 @@ function lire() {
    ---------------------------------------------------------- */
 function calculElec(s) {
   const conso = [["Éclairage LED", 60]];
-  if (s.frigo) conso.push(["Frigo", 400]);
+  if (s.froid === "frigo") conso.push(["Frigo", 400]);
+  if (s.froid === "glaciere") conso.push(["Glacière", 300]);
   if (s.avecEau) conso.push(["Pompe à eau", 15]);
   conso.push([`Téléphones (${s.pers})`, 20 * s.pers]);
   if (s.teletravail) conso.push(["Ordinateur (télétravail)", 300]);
@@ -113,11 +117,17 @@ function calculElec(s) {
   const wh = conso.reduce((t, c) => t + c[1], 0);
   const h = SOLEIL_H[s.saison];
   const solaire = Math.min(Math.ceil(wh / (h * 0.75) / 100) * 100, TOIT_MAX_W[s.gabarit]);
-  let ah = Math.ceil((wh * 2) / (12.8 * 0.9) / 50) * 50;           // 2 jours sans soleil
-  ah = Math.max(s.cuisson === "induction" ? 200 : 100, Math.min(ah, 600));
+  const apportSolaire = solaire * h * 0.75;                         // Wh produits par jour
+  const deficit = Math.max(0, wh - apportSolaire);                  // Wh à puiser chaque jour
+  // Réserve : jusqu'à 2 jours sans soleil, puis le déficit solaire des jours suivants
+  const J = s.joursElec;
+  const besoinWh = wh * Math.min(J, 2) + deficit * Math.max(0, J - 2);
+  const ahBrut = besoinWh / (12.8 * 0.9);                           // lithium 12,8 V, 90 % utilisable
+  const ah = Math.max(s.cuisson === "induction" ? 200 : 100, Math.min(Math.ceil(ahBrut / 50) * 50, 600));
   const autonomie = (ah * 12.8 * 0.9) / wh;
-  const couverture = Math.min(100, Math.round(((solaire * h * 0.75) / wh) * 100));
+  const couverture = Math.min(100, Math.round((apportSolaire / wh) * 100));
 
+  if (ahBrut > 600) alertes.push(`Pour tenir ${pluriel(J, "jour")} sans vous brancher, il faudrait environ ${Math.round(ahBrut / 50) * 50} Ah : on s'arrête à 600 Ah, il faudra rouler ou vous brancher en cours de route.`);
   if (s.clim) alertes.push("La climatisation consomme énormément : elle fonctionnera surtout branchée au camping ou moteur allumé.");
   if (couverture < 60) alertes.push(`En saison « ${LIBELLE.saison[s.saison].toLowerCase()} », le solaire couvre environ ${couverture} % des besoins : la recharge en roulant ou au camping prend le relais.`);
   return { conso, wh, solaire, ah, autonomie, couverture, convertisseur, alertes };
@@ -127,8 +137,9 @@ function calculElec(s) {
    CALCUL EAU
    ---------------------------------------------------------- */
 function calculEau(s) {
-  const parJour = 7 + (s.douche === "interieure" ? 8 : s.douche === "exterieure" ? 3 : 0);
-  const besoin = s.pers * s.jours * parJour;
+  // 7 L/jour/pers. (boire, cuisiner, vaisselle, toilette) + douches
+  const parJour = 7 + (s.douches.includes("interieure") ? 8 : 0) + (s.douches.includes("exterieure") ? 3 : 0);
+  const besoin = s.pers * s.joursEau * parJour;
   const max = EAU_MAX_L[s.gabarit];
   const reservoir = Math.min(RESERVOIRS.find((r) => r >= besoin) || 150, max);
   const grises = Math.round((reservoir * 0.8) / 10) * 10;
@@ -193,9 +204,10 @@ function calculPrix(s, elec, eau) {
     const supp = Math.max(0, eau.reservoir - 40);
     add(`Plomberie, réservoir ${eau.reservoir} L`, T.plomberie.h, [T.plomberie.mat[0] + supp * T.litreSupp[0], T.plomberie.mat[1] + supp * T.litreSupp[1]]);
   }
-  if (s.douche !== "aucune") add(LIBELLE.douche[s.douche].replace(/^./, (c) => c.toUpperCase()), T.douche[s.douche].h, T.douche[s.douche].mat);
+  s.douches.forEach((d) => add(LIBELLE.douche[d].replace(/^./, (c) => c.toUpperCase()), T.douche[d].h, T.douche[d].mat));
   if (s.wc !== "aucun") add(LIBELLE.wc[s.wc].replace(/^./, (c) => c.toUpperCase()), T.wc[s.wc].h, T.wc[s.wc].mat);
-  if (s.frigo) add("Frigo à compression", T.frigo.h, T.frigo.mat);
+  if (s.froid === "frigo") add("Frigo à compression", T.frigo.h, T.frigo.mat);
+  if (s.froid === "glaciere") add("Glacière à compression (fixation, prise 12 V)", T.glaciere.h, T.glaciere.mat);
   if (s.cuisson !== "aucune") add(`Cuisson ${LIBELLE.cuisson[s.cuisson]}`, T.cuisson[s.cuisson].h, T.cuisson[s.cuisson].mat);
   if (s.avecGaz) add("Installation gaz", T.gaz.h, T.gaz.mat);
   if (s.chauffage !== "aucun") add(`Chauffage ${LIBELLE.chauffage[s.chauffage].toLowerCase()}`, T.chauffage[s.chauffage].h, T.chauffage[s.chauffage].mat);
@@ -269,9 +281,9 @@ function majAffichage() {
   $("barre-prix-valeur").textContent = `${fourchette(prix.total)}`;
   $("resume-tech").innerHTML = [
     `🚐 ${LIBELLE.gabarit[s.gabarit]} · ${LIBELLE.projet[s.projet].toLowerCase()}`,
-    `👥 ${pluriel(s.pers, "voyageur")} · ${pluriel(s.jours, "jour")} d'autonomie`,
-    s.avecElec ? `🔋 ${elec.ah} Ah lithium · ☀️ ${elec.solaire} W` : null,
-    s.avecEau ? `💧 ${eau.reservoir} L d'eau propre` : null,
+    `👥 ${pluriel(s.pers, "voyageur")}`,
+    s.avecElec ? `🔋 ${elec.ah} Ah lithium · ☀️ ${elec.solaire} W · ${pluriel(s.joursElec, "jour")}` : null,
+    s.avecEau ? `💧 ${eau.reservoir} L d'eau propre · ${pluriel(s.joursEau, "jour")}` : null,
     s.chauffage !== "aucun" ? `🔥 Chauffage ${LIBELLE.chauffage[s.chauffage].toLowerCase()}` : null,
     `📋 VASP : ${okVasp}/${vasp.length} points OK`,
   ].filter(Boolean).map((t) => `<li>${t}</li>`).join("");
@@ -289,6 +301,7 @@ function majAffichage() {
       <div><b>${elec.solaire} W</b><span>de panneaux solaires</span></div>
       <div><b>${elec.autonomie.toFixed(1).replace(".", ",")} j</b><span>sans soleil ni recharge</span></div>
     </div>
+    <p class="detail">Dimensionné pour tenir ${pluriel(s.joursElec, "jour")} sans vous brancher : le solaire produit environ ${Math.round(elec.couverture)} % de votre consommation en saison « ${LIBELLE.saison[s.saison].toLowerCase()} ».</p>
     <p class="detail">Calculé avec : ${elec.conso.map((c) => `${c[0]} ${c[1]} Wh`).join(" · ")}</p>
     ${elec.alertes.map((a) => `<p class="alerte">${a}</p>`).join("")}`
     : `<h4>Électricité</h4><p class="detail">Pas d'installation électrique prévue. Ajoutez le module « Installation électrique » à l'étape 3 si besoin.</p>`;
@@ -297,7 +310,7 @@ function majAffichage() {
   $("bilan-eau").innerHTML = s.avecEau ? `
     <h4>Votre besoin en eau</h4>
     <div class="chiffres">
-      <div><b>${eau.besoin} L</b><span>${s.pers} pers. × ${s.jours} j × ${eau.parJour} L</span></div>
+      <div><b>${eau.besoin} L</b><span>${s.pers} pers. × ${s.joursEau} j × ${eau.parJour} L</span></div>
       <div><b>${eau.reservoir} L</b><span>réservoir d'eau propre</span></div>
       <div><b>${eau.grises} L</b><span>réservoir d'eaux grises</span></div>
     </div>
@@ -323,13 +336,13 @@ function recapLignes(s, elec, eau, okVasp, nbVasp) {
   return [
     ["Véhicule", `${LIBELLE.gabarit[s.gabarit]}${s.modele ? " · " + s.modele : ""} (${s.possede.toLowerCase()})`],
     ["Projet", LIBELLE.projet[s.projet] + (s.projet === "partiel" ? " : " + (s.modules.map((m) => LIBELLE.modules[m].toLowerCase()).join(", ") || "aucun module choisi") : "")],
-    ["Voyageurs", `${pluriel(s.adultes, "adulte")}, ${pluriel(s.enfants, "enfant")} · ${LIBELLE.saison[s.saison].toLowerCase()} · ${pluriel(s.jours, "jour")} d'autonomie`],
+    ["Voyageurs", `${pluriel(s.adultes, "adulte")}, ${pluriel(s.enfants, "enfant")} · ${LIBELLE.saison[s.saison].toLowerCase()}`],
     ["Couchage", s.a("lit") ? LIBELLE.lit[s.lit] : ""],
     ["Places pour rouler", `${s.placesRoute} avec ceinture${s.pivotants ? " · sièges pivotants" : ""}`],
-    ["Cuisine", `Cuisson ${LIBELLE.cuisson[s.cuisson]}${s.frigo ? " · frigo à compression" : ""}`],
-    ["Sanitaires", `WC : ${LIBELLE.wc[s.wc]} · douche : ${LIBELLE.douche[s.douche]}`],
-    ["Électricité", s.avecElec ? `${elec.wh} Wh/jour · batterie ${elec.ah} Ah · solaire ${elec.solaire} W${s.dcdc ? " · recharge en roulant" : ""}${s.prise230 ? " · prise 230 V" : ""}` : ""],
-    ["Eau", s.avecEau ? `${eau.reservoir} L propre · ${eau.grises} L eaux grises` : ""],
+    ["Cuisine", `Cuisson ${LIBELLE.cuisson[s.cuisson]} · ${LIBELLE.froid[s.froid]}`],
+    ["Sanitaires", `WC : ${LIBELLE.wc[s.wc]} · douche : ${s.texteDouches}`],
+    ["Électricité", s.avecElec ? `Autonomie ${pluriel(s.joursElec, "jour")} · ${elec.wh} Wh/jour · batterie ${elec.ah} Ah · solaire ${elec.solaire} W${s.dcdc ? " · recharge en roulant" : ""}${s.prise230 ? " · prise 230 V" : ""}` : ""],
+    ["Eau", s.avecEau ? `Autonomie ${pluriel(s.joursEau, "jour")} · ${eau.reservoir} L propre · ${eau.grises} L eaux grises` : ""],
     ["Chauffage", `${LIBELLE.chauffage[s.chauffage]} · eau chaude : ${LIBELLE.eauChaude[s.eauChaude]}`],
     ["Isolation", s.isolation ? "Complète (parois, toit, plancher)" : "Non incluse"],
     ["Ouvertures", `${pluriel(s.lanterneaux, "lanterneau", "lanterneaux")}${s.lanterneauVentile && s.lanterneaux ? " (dont 1 ventilé)" : ""}, ${pluriel(s.fenetres, "fenêtre")}`],
@@ -528,7 +541,7 @@ async function genererPdf(client) {
       tech.push(["Autonomie sans recharge", `${elec.autonomie.toFixed(1).replace(".", ",")} jours`]);
     }
     if (s.avecEau) {
-      tech.push(["Besoin en eau", `${eau.besoin} L (${s.pers} pers. × ${s.jours} j × ${eau.parJour} L)`]);
+      tech.push(["Besoin en eau", `${eau.besoin} L (${s.pers} pers. × ${s.joursEau} j × ${eau.parJour} L)`]);
       tech.push(["Réservoirs", `${eau.reservoir} L eau propre · ${eau.grises} L eaux grises`]);
     }
     [...(s.avecElec ? elec.alertes : []), ...(s.avecEau ? eau.alertes : [])].forEach((a) => tech.push(["À noter", a]));

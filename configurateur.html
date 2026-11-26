@@ -107,16 +107,6 @@
       <label class="tuile"><input type="radio" name="saison" value="annee"><span class="t-ico">📅</span><strong>Toute l'année</strong><small>4 saisons</small></label>
       <label class="tuile"><input type="radio" name="saison" value="hiver"><span class="t-ico">🏔️</span><strong>Hiver & montagne</strong><small>Froid, ski, neige</small></label>
     </div>
-
-    <h3>Combien de jours en autonomie ?</h3>
-    <p class="aide">Le nombre de jours sans vous brancher ni refaire le plein d'eau.</p>
-    <div class="pilules">
-      <label><input type="radio" name="jours" value="1"><span>1 jour</span></label>
-      <label><input type="radio" name="jours" value="2"><span>2 jours</span></label>
-      <label><input type="radio" name="jours" value="3" checked><span>3 jours</span></label>
-      <label><input type="radio" name="jours" value="5"><span>5 jours</span></label>
-      <label><input type="radio" name="jours" value="7"><span>7 jours et +</span></label>
-    </div>
   </section>
 
   <!-- ============ 3. VIE À BORD ============ -->
@@ -165,29 +155,33 @@
       <label><input type="radio" name="cuisson" value="gaz" checked><span>🔥 Gaz</span></label>
       <label><input type="radio" name="cuisson" value="induction"><span>⚡ Induction</span></label>
     </div>
+    <h3>Froid</h3>
+    <div class="tuiles tuiles--3">
+      <label class="tuile"><input type="radio" name="froid" value="aucun"><span class="t-ico">🚫</span><strong>Rien</strong><small>Pas de frigo à bord</small></label>
+      <label class="tuile"><input type="radio" name="froid" value="frigo" checked><span class="t-ico">🧊</span><strong>Frigo à compression</strong><small>Encastré dans le meuble cuisine, porte frontale</small></label>
+      <label class="tuile"><input type="radio" name="froid" value="glaciere"><span class="t-ico">🧳</span><strong>Glacière à compression</strong><small>Moins chère, amovible, ouverture par le dessus</small></label>
+    </div>
+
+    <h3>Travail à bord</h3>
     <div class="cases">
-      <label><input type="checkbox" name="frigo" checked> 🧊 Frigo à compression</label>
       <label><input type="checkbox" name="teletravail"> 💻 Coin télétravail</label>
     </div>
 
-    <h3>Toilettes et douche</h3>
-    <div class="champs-2">
-      <div class="champ">
-        <label for="wc">Toilettes</label>
-        <select id="wc" name="wc">
-          <option value="aucun">Pas de WC</option>
-          <option value="sec">Toilettes sèches</option>
-          <option value="cassette">WC cassette (chimique)</option>
-        </select>
-      </div>
-      <div class="champ">
-        <label for="douche">Douche</label>
-        <select id="douche" name="douche">
-          <option value="aucune">Pas de douche</option>
-          <option value="exterieure">Douchette extérieure</option>
-          <option value="interieure">Douche intérieure</option>
-        </select>
-      </div>
+    <h3>Toilettes</h3>
+    <div class="champ champ--court">
+      <label for="wc">Type de toilettes</label>
+      <select id="wc" name="wc">
+        <option value="aucun">Pas de WC</option>
+        <option value="sec">Toilettes sèches</option>
+        <option value="cassette">WC cassette (chimique)</option>
+      </select>
+    </div>
+
+    <h3>Douche</h3>
+    <p class="aide">Vous pouvez cocher les deux, ou aucune.</p>
+    <div class="cases">
+      <label><input type="checkbox" name="douches" value="interieure"> 🚿 Douche intérieure</label>
+      <label><input type="checkbox" name="douches" value="exterieure"> 🌿 Douchette extérieure</label>
     </div>
   </section>
 
@@ -195,6 +189,16 @@
   <section class="etape-config" data-etape="4" hidden>
     <h2>Électricité</h2>
     <p class="aide">On compte déjà ce que vous avez choisi avant (frigo, éclairage, pompe, téléphones…). Ajoutez ce que vous comptez brancher en plus.</p>
+
+    <h3>Autonomie électrique</h3>
+    <p class="aide">Combien de jours voulez-vous tenir sans vous brancher au camping ? Le solaire et la recharge en roulant sont pris en compte.</p>
+    <div class="pilules">
+      <label><input type="radio" name="joursElec" value="1"><span>1 jour</span></label>
+      <label><input type="radio" name="joursElec" value="2"><span>2 jours</span></label>
+      <label><input type="radio" name="joursElec" value="3" checked><span>3 jours</span></label>
+      <label><input type="radio" name="joursElec" value="5"><span>5 jours</span></label>
+      <label><input type="radio" name="joursElec" value="7"><span>7 jours et +</span></label>
+    </div>
 
     <h3>Vous utiliserez aussi…</h3>
     <div class="cases">
@@ -227,6 +231,16 @@
   <!-- ============ 5. EAU & CHAUFFAGE ============ -->
   <section class="etape-config" data-etape="5" hidden>
     <h2>Eau, chauffage, isolation</h2>
+
+    <h3>Autonomie en eau</h3>
+    <p class="aide">Combien de jours voulez-vous tenir sans refaire le plein d'eau ?</p>
+    <div class="pilules">
+      <label><input type="radio" name="joursEau" value="1"><span>1 jour</span></label>
+      <label><input type="radio" name="joursEau" value="2"><span>2 jours</span></label>
+      <label><input type="radio" name="joursEau" value="3" checked><span>3 jours</span></label>
+      <label><input type="radio" name="joursEau" value="5"><span>5 jours</span></label>
+      <label><input type="radio" name="joursEau" value="7"><span>7 jours et +</span></label>
+    </div>
 
     <div class="bilan-tech" id="bilan-eau"></div>
 

@@ -57,7 +57,8 @@ window.TARIFS = {
     sec:      { h: 4,  mat: [150, 600] },
     cassette: { h: 12, mat: [800, 1300] },
   },
-  frigo:         { h: 4,  mat: [450, 1000] },
+  frigo:         { h: 4,  mat: [450, 1000] },  // frigo encastré, découpe, ventilation
+  glaciere:      { h: 1,  mat: [250, 800] },   // glacière à compression : fixation, prise 12 V
   cuisson: {
     gaz:       { h: 3, mat: [100, 300] },
     induction: { h: 2, mat: [100, 300] },
