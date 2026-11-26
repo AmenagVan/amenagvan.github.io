@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Configurez votre van — Aménag'Van</title>
+  <meta name="description" content="Configurez votre projet d'aménagement de van : véhicule, couchages, électricité, eau, chauffage, ouvertures, homologation VASP. Estimation de prix immédiate.">
+  <link rel="icon" href="assets/logo.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/configurateur.css">
+</head>
+<body class="page-config">
+
+<header class="entete">
+  <div class="container">
+    <a href="index.html" class="marque"><img src="assets/logo.svg" alt=""><span>Aménag'Van</span></a>
+    <a href="index.html" class="btn btn--contour btn--petit">← Le site</a>
+  </div>
+</header>
+
+<div class="config-hero">
+  <div class="container">
+    <span class="surtitre">Configurateur</span>
+    <h1>Imaginez votre van, on vous dit combien.</h1>
+    <p>Quelques questions sur votre véhicule et votre façon de voyager. On calcule l'électricité et l'eau qu'il vous faut, le temps de pose et le budget matériel, puis vous recevez votre récapitulatif en PDF. C'est gratuit et sans engagement.</p>
+    <ul class="principe">
+      <li><b>Vous achetez le matériel</b> : on vous conseille les bonnes références.</li>
+      <li><b>On pose et on aménage</b> : la main d'œuvre est facturée à l'heure, en toute transparence.</li>
+    </ul>
+  </div>
+</div>
+
+<!-- Barre d'étapes -->
+<nav class="progression" aria-label="Étapes du configurateur">
+  <div class="container">
+    <ol id="liste-etapes">
+      <li><button type="button" data-aller="1"><b>1</b>Véhicule</button></li>
+      <li><button type="button" data-aller="2"><b>2</b>Voyageurs</button></li>
+      <li><button type="button" data-aller="3"><b>3</b>Vie à bord</button></li>
+      <li><button type="button" data-aller="4"><b>4</b>Électricité</button></li>
+      <li><button type="button" data-aller="5"><b>5</b>Eau & chauffage</button></li>
+      <li><button type="button" data-aller="6"><b>6</b>Ouvertures</button></li>
+      <li><button type="button" data-aller="7"><b>7</b>VASP</button></li>
+      <li><button type="button" data-aller="8"><b>8</b>Récap</button></li>
+    </ol>
+  </div>
+</nav>
+
+<main class="container config-layout">
+<form id="config" novalidate>
+
+  <!-- ============ 1. VÉHICULE ============ -->
+  <section class="etape-config" data-etape="1">
+    <h2>Votre véhicule</h2>
+    <p class="aide">Pas encore de fourgon ? Choisissez la taille que vous visez, on vous conseillera.</p>
+
+    <h3>Taille du fourgon</h3>
+    <div class="tuiles tuiles--4">
+      <label class="tuile"><input type="radio" name="gabarit" value="compact"><span class="t-ico">🚙</span><strong>Compact</strong><small>Trafic, Vivaro, Transporter, Vito, Jumpy…</small><em>~5 m · 1 à 2 pers.</em></label>
+      <label class="tuile"><input type="radio" name="gabarit" value="moyen" checked><span class="t-ico">🚐</span><strong>Moyen (L2H2)</strong><small>Master, Boxer, Jumper, Ducato, Transit…</small><em>~5,4 m · 2 pers.</em></label>
+      <label class="tuile"><input type="radio" name="gabarit" value="grand"><span class="t-ico">🚐</span><strong>Grand (L3H2)</strong><small>Mêmes modèles en version longue</small><em>~6 m · 2 à 4 pers.</em></label>
+      <label class="tuile"><input type="radio" name="gabarit" value="xl"><span class="t-ico">🚚</span><strong>Très grand (L4H3)</strong><small>Sprinter, Crafter, Ducato maxi…</small><em>~6,4 m+ · famille</em></label>
+    </div>
+
+    <div class="champs-2">
+      <div class="champ"><label for="modele">Marque et modèle (si vous l'avez)</label><input id="modele" name="modele" placeholder="Ex. Fiat Ducato L2H2 2019"></div>
+      <div class="champ">
+        <label for="possede">Le véhicule</label>
+        <select id="possede" name="possede">
+          <option>Je l'ai déjà</option>
+          <option>Je suis en train de l'acheter</option>
+          <option>Je cherche encore</option>
+        </select>
+      </div>
+    </div>
+
+    <h3>Type de projet</h3>
+    <div class="tuiles tuiles--3">
+      <label class="tuile"><input type="radio" name="projet" value="complet" checked><span class="t-ico">🏡</span><strong>Aménagement complet</strong><small>On part du fourgon vide, vous repartez avec un van prêt.</small></label>
+      <label class="tuile"><input type="radio" name="projet" value="partiel"><span class="t-ico">🧩</span><strong>Aménagement partiel</strong><small>Vous choisissez uniquement ce que vous voulez qu'on fasse.</small></label>
+      <label class="tuile"><input type="radio" name="projet" value="reparation"><span class="t-ico">🔧</span><strong>Réparation</strong><small>Quelque chose ne marche plus dans votre aménagement.</small></label>
+    </div>
+  </section>
+
+  <!-- ============ 2. VOYAGEURS ============ -->
+  <section class="etape-config" data-etape="2" hidden>
+    <h2>Qui voyage, et comment ?</h2>
+
+    <div class="champs-2">
+      <div class="champ">
+        <label>Adultes</label>
+        <div class="stepper"><button type="button" data-delta="-1" aria-label="Moins">−</button><input type="number" name="adultes" value="2" min="1" max="4" readonly><button type="button" data-delta="1" aria-label="Plus">+</button></div>
+      </div>
+      <div class="champ">
+        <label>Enfants</label>
+        <div class="stepper"><button type="button" data-delta="-1" aria-label="Moins">−</button><input type="number" name="enfants" value="0" min="0" max="4" readonly><button type="button" data-delta="1" aria-label="Plus">+</button></div>
+      </div>
+    </div>
+
+    <h3>Quand partez-vous ?</h3>
+    <div class="tuiles tuiles--4">
+      <label class="tuile"><input type="radio" name="saison" value="ete"><span class="t-ico">☀️</span><strong>Beaux jours</strong><small>Mai à septembre</small></label>
+      <label class="tuile"><input type="radio" name="saison" value="mi" checked><span class="t-ico">🍂</span><strong>Mi-saison</strong><small>Printemps à automne</small></label>
+      <label class="tuile"><input type="radio" name="saison" value="annee"><span class="t-ico">📅</span><strong>Toute l'année</strong><small>4 saisons</small></label>
+      <label class="tuile"><input type="radio" name="saison" value="hiver"><span class="t-ico">🏔️</span><strong>Hiver & montagne</strong><small>Froid, ski, neige</small></label>
+    </div>
+
+    <h3>Combien de jours en autonomie ?</h3>
+    <p class="aide">Le nombre de jours sans vous brancher ni refaire le plein d'eau.</p>
+    <div class="pilules">
+      <label><input type="radio" name="jours" value="1"><span>1 jour</span></label>
+      <label><input type="radio" name="jours" value="2"><span>2 jours</span></label>
+      <label><input type="radio" name="jours" value="3" checked><span>3 jours</span></label>
+      <label><input type="radio" name="jours" value="5"><span>5 jours</span></label>
+      <label><input type="radio" name="jours" value="7"><span>7 jours et +</span></label>
+    </div>
+  </section>
+
+  <!-- ============ 3. VIE À BORD ============ -->
+  <section class="etape-config" data-etape="3" hidden>
+    <h2>La vie à bord</h2>
+
+    <div id="bloc-modules" hidden>
+      <h3>Ce que vous voulez qu'on fabrique</h3>
+      <div class="cases">
+        <label><input type="checkbox" name="modules" value="lit"> 🛏️ Lit</label>
+        <label><input type="checkbox" name="modules" value="cuisine"> 🍳 Meuble cuisine</label>
+        <label><input type="checkbox" name="modules" value="rangements"> 🗄️ Rangements</label>
+        <label><input type="checkbox" name="modules" value="table"> 🪑 Table / coin repas</label>
+        <label><input type="checkbox" name="modules" value="electricite"> ⚡ Installation électrique</label>
+        <label><input type="checkbox" name="modules" value="plomberie"> 💧 Plomberie (eau)</label>
+      </div>
+    </div>
+
+    <h3>Couchage</h3>
+    <div class="tuiles tuiles--4">
+      <label class="tuile"><input type="radio" name="lit" value="fixe" checked><span class="t-ico">🛏️</span><strong>Lit fixe arrière</strong><small>Toujours prêt, avec du rangement dessous</small></label>
+      <label class="tuile"><input type="radio" name="lit" value="convertible"><span class="t-ico">🛋️</span><strong>Banquette convertible</strong><small>Salon le jour, lit la nuit</small></label>
+      <label class="tuile"><input type="radio" name="lit" value="pavillon"><span class="t-ico">⬆️</span><strong>Lit de pavillon</strong><small>Se remonte au plafond</small></label>
+      <label class="tuile"><input type="radio" name="lit" value="superposes"><span class="t-ico">🪜</span><strong>Lits superposés</strong><small>Idéal avec des enfants</small></label>
+    </div>
+
+    <h3>Places pour rouler</h3>
+    <p class="aide">Chaque voyageur doit avoir une place avec ceinture pendant la route.</p>
+    <div class="cases">
+      <label><input type="checkbox" name="cabine3"> La cabine a 3 places (banquette passager)</label>
+      <label><input type="checkbox" name="pivotants"> 🔄 Sièges avant pivotants</label>
+    </div>
+    <p class="alerte" id="alerte-pivotants" hidden>Une banquette passager 2 places ne peut généralement pas pivoter : seul le siège conducteur le pourra. On en parlera au devis.</p>
+    <div class="champ champ--court">
+      <label for="banquette">Places arrière avec ceintures à ajouter</label>
+      <select id="banquette" name="banquette">
+        <option value="0">Aucune</option>
+        <option value="2">Banquette 2 places</option>
+        <option value="3">Banquette 3 places</option>
+      </select>
+    </div>
+
+    <h3>Cuisine</h3>
+    <div class="pilules">
+      <label><input type="radio" name="cuisson" value="aucune"><span>Pas de cuisson</span></label>
+      <label><input type="radio" name="cuisson" value="gaz" checked><span>🔥 Gaz</span></label>
+      <label><input type="radio" name="cuisson" value="induction"><span>⚡ Induction</span></label>
+    </div>
+    <div class="cases">
+      <label><input type="checkbox" name="frigo" checked> 🧊 Frigo à compression</label>
+      <label><input type="checkbox" name="teletravail"> 💻 Coin télétravail</label>
+    </div>
+
+    <h3>Toilettes et douche</h3>
+    <div class="champs-2">
+      <div class="champ">
+        <label for="wc">Toilettes</label>
+        <select id="wc" name="wc">
+          <option value="aucun">Pas de WC</option>
+          <option value="sec">Toilettes sèches</option>
+          <option value="cassette">WC cassette (chimique)</option>
+        </select>
+      </div>
+      <div class="champ">
+        <label for="douche">Douche</label>
+        <select id="douche" name="douche">
+          <option value="aucune">Pas de douche</option>
+          <option value="exterieure">Douchette extérieure</option>
+          <option value="interieure">Douche intérieure</option>
+        </select>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 4. ÉLECTRICITÉ ============ -->
+  <section class="etape-config" data-etape="4" hidden>
+    <h2>Électricité</h2>
+    <p class="aide">On compte déjà ce que vous avez choisi avant (frigo, éclairage, pompe, téléphones…). Ajoutez ce que vous comptez brancher en plus.</p>
+
+    <h3>Vous utiliserez aussi…</h3>
+    <div class="cases">
+      <label><input type="checkbox" name="conso" value="150" data-nom="Routeur 4G/5G"> 📶 Routeur 4G/5G</label>
+      <label><input type="checkbox" name="conso" value="70" data-nom="TV / vidéoprojecteur"> 📺 TV / vidéoprojecteur</label>
+      <label><input type="checkbox" name="conso" value="300" data-nom="Cafetière / bouilloire"> ☕ Cafetière, bouilloire</label>
+      <label><input type="checkbox" name="conso" value="200" data-nom="Sèche-cheveux"> 💨 Sèche-cheveux</label>
+      <label><input type="checkbox" name="conso" value="250" data-nom="Vélo électrique / drone"> 🚲 Vélo élec, drone</label>
+      <label><input type="checkbox" name="conso" value="100" data-nom="Enceinte, appareil photo…"> 🔊 Enceinte, appareil photo</label>
+    </div>
+
+    <h3>Recharge</h3>
+    <div class="cases">
+      <label><input type="checkbox" name="dcdc" checked> 🚗 Recharger en roulant</label>
+      <label><input type="checkbox" name="prise230" checked> 🔌 Prise extérieure 230 V (camping)</label>
+    </div>
+
+    <div class="champ champ--court">
+      <label for="convertisseur">Prises 230 V à l'intérieur</label>
+      <select id="convertisseur" name="convertisseur">
+        <option value="aucun">Non, tout en 12 V / USB</option>
+        <option value="petit" selected>Oui, petits appareils (1 000 W)</option>
+        <option value="gros">Oui, gros appareils (2 000 W+)</option>
+      </select>
+    </div>
+
+    <div class="bilan-tech" id="bilan-elec"></div>
+  </section>
+
+  <!-- ============ 5. EAU & CHAUFFAGE ============ -->
+  <section class="etape-config" data-etape="5" hidden>
+    <h2>Eau, chauffage, isolation</h2>
+
+    <div class="bilan-tech" id="bilan-eau"></div>
+
+    <h3>Chauffage</h3>
+    <div class="tuiles tuiles--4">
+      <label class="tuile"><input type="radio" name="chauffage" value="aucun"><span class="t-ico">🚫</span><strong>Aucun</strong><small>Usage estival uniquement</small></label>
+      <label class="tuile"><input type="radio" name="chauffage" value="diesel" checked><span class="t-ico">⛽</span><strong>Diesel</strong><small>Utilise le gasoil du réservoir. Le plus courant.</small></label>
+      <label class="tuile"><input type="radio" name="chauffage" value="gaz"><span class="t-ico">🔥</span><strong>Gaz</strong><small>Silencieux, avec une bouteille de gaz</small></label>
+      <label class="tuile"><input type="radio" name="chauffage" value="combi"><span class="t-ico">♨️</span><strong>Combiné</strong><small>Chauffage + eau chaude dans un seul appareil</small></label>
+    </div>
+
+    <h3>Eau chaude</h3>
+    <div class="pilules" id="choix-eau-chaude">
+      <label><input type="radio" name="eauChaude" value="aucune" checked><span>Pas d'eau chaude</span></label>
+      <label><input type="radio" name="eauChaude" value="boiler"><span>⚡ Ballon 12 V / 230 V</span></label>
+      <label><input type="radio" name="eauChaude" value="gaz"><span>🔥 Chauffe-eau gaz</span></label>
+    </div>
+    <p class="aide" id="note-combi" hidden>✓ L'eau chaude est fournie par le chauffage combiné.</p>
+
+    <h3>Isolation</h3>
+    <div class="cases">
+      <label><input type="checkbox" name="isolation" checked> 🧱 Isolation complète (parois, toit, plancher)</label>
+    </div>
+  </section>
+
+  <!-- ============ 6. OUVERTURES ============ -->
+  <section class="etape-config" data-etape="6" hidden>
+    <h2>Ouvertures & confort</h2>
+
+    <div class="champs-2">
+      <div class="champ">
+        <label>Lanterneaux (aérations de toit)</label>
+        <div class="stepper"><button type="button" data-delta="-1" aria-label="Moins">−</button><input type="number" name="lanterneaux" value="1" min="0" max="3" readonly><button type="button" data-delta="1" aria-label="Plus">+</button></div>
+      </div>
+      <div class="champ">
+        <label>Fenêtres à ajouter</label>
+        <div class="stepper"><button type="button" data-delta="-1" aria-label="Moins">−</button><input type="number" name="fenetres" value="1" min="0" max="4" readonly><button type="button" data-delta="1" aria-label="Plus">+</button></div>
+      </div>
+    </div>
+    <div class="cases">
+      <label><input type="checkbox" name="lanterneauVentile"> 🌀 Lanterneau avec ventilateur (extracteur)</label>
+      <label><input type="checkbox" name="occultants" checked> 🌙 Rideaux occultants isolants</label>
+      <label><input type="checkbox" name="store"> ⛱️ Store extérieur</label>
+      <label><input type="checkbox" name="clim"> ❄️ Climatisation</label>
+    </div>
+  </section>
+
+  <!-- ============ 7. VASP ============ -->
+  <section class="etape-config" data-etape="7" hidden>
+    <h2>Homologation VASP</h2>
+    <p>Une fois aménagé avec un lit, une table, une cuisine et des rangements fixes, votre fourgon doit être homologué <strong>VASP « autocaravane »</strong>. La carte grise change, et c'est ce qui vous couvre auprès de l'assurance et au contrôle technique.</p>
+
+    <div class="tuiles tuiles--3">
+      <label class="tuile"><input type="radio" name="vasp" value="oui" checked><span class="t-ico">📋</span><strong>Oui, accompagnez-moi</strong><small>On construit aux normes et on prépare le dossier avec vous</small></label>
+      <label class="tuile"><input type="radio" name="vasp" value="normes"><span class="t-ico">📐</span><strong>Juste aux normes</strong><small>Je fais les démarches moi-même</small></label>
+      <label class="tuile"><input type="radio" name="vasp" value="nsp"><span class="t-ico">❓</span><strong>Je ne sais pas</strong><small>On en parle au moment du devis</small></label>
+    </div>
+
+    <h3>Votre projet face aux exigences VASP</h3>
+    <ul class="checklist" id="checklist-vasp"></ul>
+    <p class="aide">Les exigences s'appuient sur les normes NF EN 1646-1 (habitation), NF EN 721 (ventilation) et NF EN 1949 (gaz). La DREAL Nouvelle-Aquitaine valide le dossier final : certaines pièces demandées peuvent changer d'une région à l'autre.</p>
+  </section>
+
+  <!-- ============ 8. RÉCAP & ENVOI ============ -->
+  <section class="etape-config" data-etape="8" hidden>
+    <h2>Votre projet</h2>
+    <div id="recap-detail"></div>
+
+    <h3>Vos idées, vos envies</h3>
+    <div class="champ champ--large">
+      <textarea name="idees" rows="5" placeholder="Une ambiance (bois clair, style chalet…), un plan auquel vous pensez, un budget max, une date de départ…"></textarea>
+    </div>
+
+    <h3>Vos coordonnées</h3>
+    <div class="champs-2">
+      <div class="champ"><label for="nom">Nom et prénom *</label><input id="nom" name="nom" required autocomplete="name"></div>
+      <div class="champ"><label for="tel">Téléphone</label><input id="tel" name="tel" type="tel" autocomplete="tel"></div>
+      <div class="champ champ--large"><label for="email">E-mail *</label><input id="email" name="email" type="email" required autocomplete="email"></div>
+    </div>
+    <p class="mention-rgpd">Vos informations servent uniquement à préparer votre devis. <a href="mentions-legales.html">En savoir plus</a>.</p>
+    <div class="actions-finales">
+      <button type="submit" class="btn btn--soleil">Envoyer ma demande</button>
+      <button type="button" class="btn btn--ghost" id="btn-pdf">Télécharger le PDF</button>
+    </div>
+    <p class="aide">En envoyant, votre récapitulatif PDF est téléchargé et votre messagerie s'ouvre : il suffit de joindre le PDF.</p>
+    <p class="message-form" role="status" aria-live="polite"></p>
+  </section>
+
+  <div class="nav-etapes">
+    <button type="button" class="btn btn--ghost" id="precedent">← Précédent</button>
+    <button type="button" class="btn btn--soleil" id="suivant">Suivant →</button>
+  </div>
+</form>
+
+<!-- ============ ESTIMATION (colonne) ============ -->
+<aside class="estimation" id="estimation">
+  <span class="surtitre">Votre estimation</span>
+  <dl class="est-lignes">
+    <div><dt>Main d'œuvre</dt><dd><b id="est-mo">—</b><small id="est-mo-detail"></small></dd></div>
+    <div><dt>Matériel estimé <small>(acheté par vous)</small></dt><dd><b id="est-mat">—</b></dd></div>
+    <div class="est-total"><dt>Budget global</dt><dd><b id="est-total">—</b><small>hors véhicule, frais externes compris</small></dd></div>
+  </dl>
+  <ul class="resume-tech" id="resume-tech"></ul>
+  <details>
+    <summary>Voir le détail poste par poste</summary>
+    <ul class="lignes-prix" id="lignes-prix"></ul>
+  </details>
+  <p class="avert">Estimation indicative, non contractuelle. Le devis définitif est établi après visite du véhicule.</p>
+</aside>
+</main>
+
+<!-- Barre de prix (mobile et tablette) -->
+<div class="barre-prix">
+  <div><small>Budget estimé</small><b id="barre-prix-valeur">—</b></div>
+  <a href="#estimation" class="btn btn--soleil btn--petit">Détail</a>
+</div>
+<footer class="pied">
+  <div class="container">
+    <p>© <span id="annee">2026</span> Aménag'Van · Mauléon (79)</p>
+    <p><a href="mentions-legales.html">Mentions légales</a></p>
+  </div>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="js/config.js"></script>
+<script src="js/tarifs.js"></script>
+<script src="js/configurateur.js"></script>
+</body>
+</html>

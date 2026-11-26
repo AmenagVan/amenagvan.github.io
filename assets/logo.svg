@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Aménag'Van">
+  <circle cx="32" cy="32" r="30" fill="#24382c"/>
+  <!-- soleil -->
+  <circle cx="44" cy="22" r="7" fill="#e07a3f"/>
+  <!-- collines du bocage -->
+  <path d="M4 40 Q18 30 32 38 T60 36 L60 44 L4 44 Z" fill="#3f5f48"/>
+  <!-- van -->
+  <g fill="#f2e8d5">
+    <path d="M14 46 V36 a4 4 0 0 1 4-4 h22 l7 7 v7 Z"/>
+  </g>
+  <rect x="19" y="35" width="7" height="5" rx="1" fill="#24382c"/>
+  <rect x="29" y="35" width="7" height="5" rx="1" fill="#24382c"/>
+  <path d="M39 35 h1.5 l4.5 4.5 H39 Z" fill="#24382c"/>
+  <circle cx="21" cy="47" r="3.2" fill="#1a2620" stroke="#f2e8d5" stroke-width="1.5"/>
+  <circle cx="40" cy="47" r="3.2" fill="#1a2620" stroke="#f2e8d5" stroke-width="1.5"/>
+</svg>

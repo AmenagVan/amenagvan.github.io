@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Aménag'Van — Aménagement & réparation de vans à Mauléon (79)</title>
+  <meta name="description" content="Aménagement complet ou partiel de vans et fourgons à Mauléon (Deux-Sèvres) : électricité, solaire, plomberie, isolation, chauffage, chauffe-eau. Devis gratuit.">
+  <link rel="icon" href="assets/logo.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- ================= EN-TÊTE ================= -->
+<header class="entete">
+  <div class="container">
+    <a href="#accueil" class="marque">
+      <img src="assets/logo.svg" alt="">
+      <span>Aménag'Van</span>
+    </a>
+    <button class="burger" aria-label="Ouvrir le menu" aria-expanded="false">☰</button>
+    <nav class="nav" aria-label="Navigation principale">
+      <ul>
+        <li><a href="#services">Services</a></li>
+        <li><a href="#methode">Méthode</a></li>
+        <li><a href="#realisations">Réalisations</a></li>
+        <li><a href="#vasp">VASP</a></li>
+        <li><a href="#tarifs">Tarifs</a></li>
+        <li><a href="#avis">Avis</a></li>
+        <li><a href="configurateur.html" class="btn btn--soleil">Configurer mon van</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+
+<main>
+
+<!-- ================= HÉRO ================= -->
+<section class="hero" id="accueil">
+  <div class="container">
+    <span class="badge-lieu">📍 Mauléon · Deux-Sèvres (79)</span>
+    <h1>Votre van, <em>prêt pour la route.</em></h1>
+    <p>Aménagement complet ou sur mesure, électricité, eau, chauffage, isolation : on transforme votre fourgon en vrai chez-vous roulant, et on le répare quand il fait des siennes.</p>
+    <div class="btns">
+      <a href="configurateur.html" class="btn btn--soleil">Configurer mon van · prix immédiat</a>
+      <a href="#services" class="btn btn--contour">Voir les services</a>
+    </div>
+  </div>
+
+  <!-- Paysage illustré : bocage + van -->
+  <svg class="hero__paysage" viewBox="0 0 1440 320" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+    <circle cx="1120" cy="120" r="70" fill="#fbe0b8" opacity=".8"/>
+    <path d="M0 190 Q200 120 420 170 T860 150 T1440 160 V320 H0 Z" fill="#7d9471"/>
+    <g fill="#5e7a5b">
+      <circle cx="140" cy="168" r="22"/><circle cx="175" cy="160" r="26"/><circle cx="600" cy="150" r="20"/>
+      <circle cx="630" cy="146" r="24"/><circle cx="1010" cy="152" r="22"/><circle cx="1300" cy="150" r="25"/><circle cx="1335" cy="158" r="20"/>
+    </g>
+    <path d="M0 240 Q260 180 560 225 T1100 210 T1440 220 V320 H0 Z" fill="#3f5f48"/>
+    <path d="M0 280 Q360 245 760 270 T1440 265 V320 H0 Z" fill="#24382c"/>
+    <!-- route -->
+    <path d="M0 300 Q500 280 900 292 T1440 290" stroke="#16201a" stroke-width="18" fill="none"/>
+    <path d="M0 300 Q500 280 900 292 T1440 290" stroke="#f2e8d5" stroke-width="2" stroke-dasharray="18 22" fill="none" opacity=".6"/>
+    <!-- van -->
+    <g transform="translate(330 222)">
+      <path d="M0 62 V18 a14 14 0 0 1 14-14 h104 l30 30 v28 Z" fill="#f2e8d5"/>
+      <rect x="0" y="40" width="148" height="8" fill="#e07a3f"/>
+      <rect x="16" y="14" width="30" height="20" rx="3" fill="#24382c"/>
+      <rect x="54" y="14" width="30" height="20" rx="3" fill="#24382c"/>
+      <path d="M108 12 h8 l22 22 h-30 Z" fill="#24382c"/>
+      <rect x="20" y="-4" width="70" height="8" rx="2" fill="#5d6b62"/>
+      <circle cx="32" cy="64" r="13" fill="#16201a"/><circle cx="32" cy="64" r="5" fill="#9aa59e"/>
+      <circle cx="118" cy="64" r="13" fill="#16201a"/><circle cx="118" cy="64" r="5" fill="#9aa59e"/>
+    </g>
+  </svg>
+</section>
+
+<!-- ================= ATOUTS ================= -->
+<section class="atouts" aria-label="Nos engagements">
+  <div class="container">
+    <ul>
+      <li><span>🛠️</span> Artisan local, travail soigné</li>
+      <li><span>📝</span> Devis gratuit et détaillé</li>
+      <li><span>📋</span> Aux normes VASP</li>
+      <li><span>🤝</span> Suivi après travaux</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ================= SERVICES ================= -->
+<section class="section" id="services">
+  <div class="container">
+    <span class="surtitre">Ce qu'on fait</span>
+    <h2>Nos services</h2>
+    <p class="intro">Du fourgon nu au camping-car aménagé, ou juste le petit truc qui manque : on s'adapte à votre projet et à votre budget.</p>
+
+    <div class="grille-services">
+      <article class="carte carte--vedette">
+        <div class="ico">🚐</div>
+        <h3>Aménagement complet</h3>
+        <p>On part du fourgon vide et on vous livre un van prêt à partir.</p>
+        <ul><li>Étude et plan sur mesure</li><li>Lit, cuisine, rangements</li><li>Tous réseaux inclus</li></ul>
+      </article>
+      <article class="carte carte--vedette">
+        <div class="ico">🧩</div>
+        <h3>Aménagement partiel</h3>
+        <p>Vous avez commencé ou vous voulez juste un module ? On complète.</p>
+        <ul><li>Meuble cuisine, lit, coffres</li><li>Finitions, habillage</li><li>Reprise d'un projet en cours</li></ul>
+      </article>
+      <article class="carte">
+        <div class="ico">⚡</div>
+        <h3>Électricité</h3>
+        <p>Une installation fiable, dimensionnée pour votre usage.</p>
+        <ul><li>Batterie auxiliaire, lithium</li><li>Panneaux solaires, coupleur</li><li>Convertisseur 230 V, éclairage</li></ul>
+      </article>
+      <article class="carte">
+        <div class="ico">💧</div>
+        <h3>Plomberie & eau</h3>
+        <p>De l'eau propre, une évacuation propre, sans fuite.</p>
+        <ul><li>Réservoirs eau propre / grise</li><li>Pompe, robinetterie, douche</li><li>Chauffe-eau gaz ou électrique</li></ul>
+      </article>
+      <article class="carte">
+        <div class="ico">🔥</div>
+        <h3>Chauffage</h3>
+        <p>Pour partir même quand il gèle.</p>
+        <ul><li>Chauffage diesel ou gaz</li><li>Installation et mise en service</li><li>Entretien et dépannage</li></ul>
+      </article>
+      <article class="carte">
+        <div class="ico">🧱</div>
+        <h3>Isolation</h3>
+        <p>Frais l'été, chaud l'hiver, sans condensation.</p>
+        <ul><li>Isolation parois, toit, plancher</li><li>Traitement anti-condensation</li><li>Lambris, habillage</li></ul>
+      </article>
+      <article class="carte">
+        <div class="ico">🔧</div>
+        <h3>Réparation & dépannage</h3>
+        <p>Quelque chose ne marche plus dans votre aménagement ? On diagnostique et on répare.</p>
+        <ul><li>Panne électrique, fuite d'eau</li><li>Chauffage ou chauffe-eau en panne</li><li>Meubles abîmés</li></ul>
+      </article>
+      <article class="carte carte--vedette">
+        <div class="ico">📋</div>
+        <h3>Homologation VASP</h3>
+        <p>Votre van construit aux normes, et on vous aide à faire le dossier pour la carte grise.</p>
+        <ul><li>Aménagement conforme aux normes</li><li>Certificat gaz, pesée</li><li>Préparation du dossier DREAL</li></ul>
+      </article>
+    </div>
+    <p style="margin-top:2rem"><a href="configurateur.html" class="btn btn--soleil">Configurer mon projet →</a></p>
+  </div>
+</section>
+
+<!-- ================= MÉTHODE ================= -->
+<section class="section section--sombre" id="methode">
+  <div class="container">
+    <span class="surtitre">Comment ça se passe</span>
+    <h2>Simple, en 4 étapes</h2>
+    <p class="intro">Pas de mauvaise surprise : vous savez ce qu'on fait, quand et pour combien.</p>
+    <div class="etapes">
+      <div class="etape"><h3>On discute</h3><p>Vous nous décrivez votre van, votre usage et vos envies, par téléphone ou à l'atelier.</p></div>
+      <div class="etape"><h3>Le devis</h3><p>On vous envoie un devis clair et détaillé, gratuitement, sans engagement.</p></div>
+      <div class="etape"><h3>Les travaux</h3><p>On réalise le chantier et on vous envoie des photos de l'avancement.</p></div>
+      <div class="etape"><h3>La remise des clés</h3><p>On vous explique tout le fonctionnement du van et on reste dispo après.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= VASP ================= -->
+<section class="section section--claire" id="vasp">
+  <div class="container">
+    <span class="surtitre">Homologation</span>
+    <h2>Un van aux normes VASP</h2>
+    <p class="intro">Quand un fourgon reçoit un lit, une table, une cuisine et des rangements fixes, il doit être homologué <strong>VASP « autocaravane »</strong>. Sans ça, vous risquez des problèmes avec l'assurance et au contrôle technique. On construit chaque van pour qu'il passe.</p>
+
+    <div class="grille-services">
+      <article class="carte">
+        <div class="ico">🛏️</div>
+        <h3>Les équipements</h3>
+        <ul><li>Couchage d'au moins 1,80 × 0,60 m</li><li>Table, cuisine avec cuisson et point d'eau</li><li>Rangements fixés à la structure</li><li>Une place avec ceinture par voyageur</li></ul>
+      </article>
+      <article class="carte">
+        <div class="ico">🛡️</div>
+        <h3>La sécurité</h3>
+        <ul><li>Gaz certifié : coffre ventilé, détendeur, détecteur</li><li>Aérations haute et basse permanentes</li><li>Électricité protégée, différentiel 30 mA</li><li>Extincteur, mobilier solidement fixé</li></ul>
+      </article>
+      <article class="carte">
+        <div class="ico">📑</div>
+        <h3>Les démarches</h3>
+        <ul><li>Contrôle de conformité par un organisme agréé</li><li>Pesée sur bascule officielle</li><li>Dossier de réception (RTI) à la DREAL</li><li>Nouvelle carte grise « VASP autocaravane »</li></ul>
+      </article>
+    </div>
+    <p class="note">Normes de référence : NF EN 1646-1 (habitation), NF EN 721 (ventilation), NF EN 1949 (gaz). Les frais d'organismes (contrôle de conformité, dossier DREAL, pesée) sont réglés directement par le client : comptez 350 à 550 €, plus 100 à 200 € de certificat gaz si le van a du gaz à bord.</p>
+  </div>
+</section>
+
+<!-- ================= RÉALISATIONS ================= -->
+<section class="section" id="realisations">
+  <div class="container">
+    <span class="surtitre">Galerie</span>
+    <h2>Nos réalisations</h2>
+    <p class="intro">Les premiers projets arrivent : les photos seront ajoutées ici au fur et à mesure des chantiers.</p>
+
+    <!-- Pour ajouter une photo : remplacer le <div class="vide"> par
+         <img src="assets/galerie/nom-photo.jpg" alt="Description"> -->
+    <div class="galerie">
+      <figure><div class="vide"><div><strong>Photo à venir</strong>Aménagement complet</div></div><figcaption>Fourgon aménagé</figcaption></figure>
+      <figure><div class="vide"><div><strong>Photo à venir</strong>Cuisine</div></div><figcaption>Meuble cuisine</figcaption></figure>
+      <figure><div class="vide"><div><strong>Photo à venir</strong>Électricité</div></div><figcaption>Installation solaire</figcaption></figure>
+      <figure><div class="vide"><div><strong>Photo à venir</strong>Isolation</div></div><figcaption>Isolation des parois</figcaption></figure>
+      <figure><div class="vide"><div><strong>Photo à venir</strong>Couchage</div></div><figcaption>Lit et rangements</figcaption></figure>
+    </div>
+  </div>
+</section>
+
+<!-- ================= TARIFS ================= -->
+<section class="section section--claire" id="tarifs">
+  <div class="container">
+    <span class="surtitre">Combien ça coûte</span>
+    <h2>Des tarifs transparents</h2>
+    <p class="intro">Vous achetez le matériel (on vous conseille les bonnes références), on facture uniquement le temps de pose. Vous savez exactement ce que vous payez.</p>
+
+    <div class="principe-tarif">
+      <div><b data-tarif="taux">40 €</b><span>de l'heure de main d'œuvre</span></div>
+      <div><b>0 €</b><span>de marge sur le matériel</span></div>
+      <div><b>Gratuit</b><span>devis et conseils matériel</span></div>
+    </div>
+
+    <!-- Le tableau est rempli automatiquement depuis js/tarifs.js -->
+    <table class="tarifs">
+      <thead><tr><th>Prestation</th><th>Temps de pose</th><th>Main d'œuvre</th><th>Matériel indicatif</th></tr></thead>
+      <tbody id="grille-tarifs"></tbody>
+    </table>
+    <p class="note">Temps et prix indicatifs pour un fourgon moyen (L2H2). Le matériel est acheté par le client : la fourchette va du premier prix de qualité au haut de gamme. Le devis est gratuit et sans engagement.</p>
+    <p><a href="configurateur.html" class="btn btn--soleil">Estimer le prix de mon projet →</a></p>
+  </div>
+</section>
+
+<!-- ================= AVIS ================= -->
+<section class="section section--sombre" id="avis">
+  <div class="container">
+    <span class="surtitre">Ils nous font confiance</span>
+    <h2>Avis clients</h2>
+
+    <div class="avis-vide">
+      <div>
+        <div class="etoiles">★★★★★</div>
+        <p>L'atelier démarre tout juste : les premiers avis de nos clients apparaîtront ici. Vous avez fait travailler votre van chez nous ? Dites-nous ce que vous en avez pensé !</p>
+      </div>
+      <div><a href="#devis" class="btn btn--soleil" data-sujet="avis">Laisser un avis</a></div>
+    </div>
+
+    <!-- Pour ajouter un vrai avis, copier ce bloc dans .liste-avis :
+    <blockquote class="avis">
+      <div class="etoiles">★★★★★</div>
+      <p>Texte de l'avis.</p>
+      <cite>Prénom, ville</cite>
+    </blockquote>
+    -->
+    <div class="liste-avis"></div>
+  </div>
+</section>
+
+<!-- ================= ZONE ================= -->
+<section class="section" id="zone">
+  <div class="container zone">
+    <div>
+      <span class="surtitre">Où nous trouver</span>
+      <h2>Basés à Mauléon</h2>
+      <p>L'atelier est à Mauléon (79700), au cœur du Bocage. On accueille les vans de tout le secteur, entre Deux-Sèvres, Vendée et Maine-et-Loire :</p>
+      <ul class="villes">
+        <li>Mauléon</li><li>Bressuire</li><li>Cholet</li><li>Cerizay</li><li>Les Herbiers</li>
+        <li>Mortagne-sur-Sèvre</li><li>Saint-Laurent-sur-Sèvre</li><li>Pouzauges</li><li>Argentonnay</li>
+      </ul>
+    </div>
+    <iframe title="Carte de Mauléon"
+      src="https://www.openstreetmap.org/export/embed.html?bbox=-0.86%2C46.86%2C-0.64%2C46.98&amp;layer=mapnik&amp;marker=46.9228%2C-0.7495"
+      loading="lazy"></iframe>
+  </div>
+</section>
+
+<!-- ================= DEVIS / CONTACT ================= -->
+<section class="section section--claire" id="devis">
+  <div class="container devis-grille">
+    <div>
+      <span class="surtitre">Parlons de votre projet</span>
+      <h2>Devis & contact</h2>
+      <p>Une question, une panne, un projet ? Écrivez-nous, on vous répond rapidement. Pour un aménagement, le plus simple est d'utiliser le <a href="configurateur.html"><strong>configurateur</strong></a> : vous obtenez une estimation détaillée et votre récapitulatif en PDF.</p>
+      <ul class="infos-contact">
+        <li><span>📞</span><div><strong>Téléphone</strong><a href="tel:+33600000000" data-config="tel">06 00 00 00 00</a></div></li>
+        <li><span>✉️</span><div><strong>E-mail</strong><a href="mailto:contact@exemple.fr" data-config="email">contact@exemple.fr</a></div></li>
+        <li><span>📍</span><div><strong>Atelier</strong>Mauléon, 79700<br><small>Sur rendez-vous</small></div></li>
+      </ul>
+    </div>
+
+    <form class="formulaire" id="form-devis" novalidate>
+      <div class="champ champ--large">
+        <label for="sujet">Votre demande</label>
+        <select id="sujet" name="sujet">
+          <option value="devis">Demande de devis</option>
+          <option value="question">Question / renseignement</option>
+          <option value="depannage">Dépannage / réparation</option>
+          <option value="avis">Laisser un avis</option>
+        </select>
+      </div>
+      <div class="champ"><label for="nom">Nom et prénom *</label><input id="nom" name="nom" required autocomplete="name"></div>
+      <div class="champ"><label for="tel">Téléphone</label><input id="tel" name="tel" type="tel" autocomplete="tel"></div>
+      <div class="champ champ--large"><label for="email">E-mail *</label><input id="email" name="email" type="email" required autocomplete="email"></div>
+
+      <div class="champ bloc-devis"><label for="vehicule">Modèle du véhicule</label><input id="vehicule" name="vehicule" placeholder="Ex. Renault Trafic 2018, L2H1"></div>
+      <div class="champ bloc-devis">
+        <label for="etat">État actuel</label>
+        <select id="etat" name="etat">
+          <option>Fourgon vide</option>
+          <option>Déjà partiellement aménagé</option>
+          <option>Déjà aménagé (réparation / ajout)</option>
+        </select>
+      </div>
+
+      <fieldset class="bloc-devis">
+        <legend>Prestations souhaitées</legend>
+        <div class="cases">
+          <label><input type="checkbox" name="prestations" value="Aménagement complet"> Aménagement complet</label>
+          <label><input type="checkbox" name="prestations" value="Aménagement partiel"> Aménagement partiel</label>
+          <label><input type="checkbox" name="prestations" value="Électricité / solaire"> Électricité / solaire</label>
+          <label><input type="checkbox" name="prestations" value="Plomberie"> Plomberie</label>
+          <label><input type="checkbox" name="prestations" value="Chauffe-eau"> Chauffe-eau</label>
+          <label><input type="checkbox" name="prestations" value="Chauffage"> Chauffage</label>
+          <label><input type="checkbox" name="prestations" value="Isolation"> Isolation</label>
+          <label><input type="checkbox" name="prestations" value="Réparation"> Réparation</label>
+        </div>
+      </fieldset>
+
+      <div class="champ champ--large"><label for="message" id="label-message">Votre projet *</label><textarea id="message" name="message" required placeholder="Décrivez votre projet, votre budget, vos délais…"></textarea></div>
+
+      <p class="mention-rgpd">Vos informations servent uniquement à répondre à votre demande. Elles ne sont jamais revendues. <a href="mentions-legales.html">En savoir plus</a>.</p>
+      <button type="submit" class="btn btn--soleil">Envoyer ma demande</button>
+      <p class="message-form" role="status" aria-live="polite"></p>
+    </form>
+  </div>
+</section>
+
+</main>
+
+<!-- ================= PIED DE PAGE ================= -->
+<footer class="pied">
+  <div class="container">
+    <a href="#accueil" class="marque"><img src="assets/logo.svg" alt="" width="36" height="36"><span>Aménag'Van</span></a>
+    <p>Aménagement & réparation de vans · Mauléon (79)</p>
+    <p>© <span id="annee">2026</span> · <a href="mentions-legales.html">Mentions légales</a></p>
+  </div>
+</footer>
+
+<script src="js/config.js"></script>
+<script src="js/tarifs.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

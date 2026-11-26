@@ -1,0 +1,209 @@
+/* ==========================================================
+   Configurateur — styles spécifiques
+   Points de rupture : 1100 px (tablette paysage), 820 px (tablette
+   portrait), 560 px (téléphone)
+   ========================================================== */
+
+.btn--petit { padding: .5rem 1.1rem; font-size: 1rem; }
+.btn--ghost { background: transparent; color: var(--foret); border-color: var(--sable-2); }
+.btn--ghost:hover { border-color: var(--foret); }
+.btn[disabled] { opacity: .35; pointer-events: none; }
+
+/* En-tête de page */
+.config-hero {
+  background: linear-gradient(135deg, var(--foret) 0%, var(--foret-2) 100%);
+  color: var(--sable); padding: 3.5rem 0 3rem;
+}
+.config-hero h1 { font-size: clamp(2.1rem, 5vw, 3.6rem); max-width: 18ch; color: var(--sable); }
+.config-hero p { max-width: 660px; color: var(--sable-2); margin: 0; }
+.principe { list-style: none; padding: 0; margin: 1.5rem 0 0; display: flex; flex-wrap: wrap; gap: .8rem; }
+.principe li {
+  background: rgba(255,255,255,.08); border: 1px solid rgba(242,232,213,.2);
+  border-radius: 12px; padding: .7rem 1rem; font-size: .95rem; max-width: 360px;
+}
+.principe b { color: var(--soleil); }
+
+/* Barre d'étapes */
+.progression { background: #fff; border-bottom: 1px solid var(--sable-2); position: sticky; top: 70px; z-index: 40; }
+.progression ol {
+  position: relative; list-style: none; margin: 0; padding: 0;
+  display: flex; overflow-x: auto; scrollbar-width: none; scroll-behavior: smooth;
+}
+.progression ol::-webkit-scrollbar { display: none; }
+.progression li { flex: 1 0 auto; }
+.progression button {
+  width: 100%; background: none; border: 0; border-bottom: 3px solid transparent;
+  padding: .9rem .7rem; font: 600 .95rem var(--f-texte); color: var(--gris);
+  cursor: pointer; display: flex; align-items: center; justify-content: center; gap: .45rem; white-space: nowrap;
+}
+.progression button:disabled { opacity: .35; cursor: default; }
+.progression b {
+  display: inline-grid; place-items: center; width: 1.6rem; height: 1.6rem; border-radius: 50%;
+  background: var(--sable); font-size: .85rem;
+}
+.progression .fait button { color: var(--foret-2); }
+.progression .fait b { background: var(--mousse); color: #fff; }
+.progression .actif button { color: var(--foret); border-bottom-color: var(--soleil); }
+.progression .actif b { background: var(--soleil); color: #fff; }
+
+/* Mise en page */
+.config-layout {
+  display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 2rem;
+  padding: 2.5rem 0 5rem; align-items: start;
+}
+#config { background: #fff; border-radius: var(--radius); box-shadow: var(--ombre); padding: clamp(1.2rem, 3vw, 2.5rem); min-width: 0; }
+.etape-config h2 { font-size: clamp(1.8rem, 3.5vw, 2.4rem); }
+.etape-config h3 { font-size: 1.2rem; color: var(--foret); margin: 2rem 0 .7rem; }
+.etape-config h2 + h3, .etape-config .aide + h3 { margin-top: 1rem; }
+.aide { color: var(--gris); font-size: .95rem; margin: 0 0 .8rem; }
+
+.champs-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem 1.2rem; margin-top: 1.2rem; }
+.champ--court { max-width: 380px; margin-top: 1rem; }
+.etape-config .cases { margin-top: .4rem; }
+.etape-config .champ input, .etape-config .champ select, .etape-config .champ textarea { font-size: 1rem; }
+
+/* Tuiles de choix */
+.tuiles { display: grid; gap: .8rem; }
+.tuiles--3 { grid-template-columns: repeat(3, 1fr); }
+.tuiles--4 { grid-template-columns: repeat(4, 1fr); }
+.tuile {
+  position: relative; display: flex; flex-direction: column; gap: .2rem;
+  padding: 1rem; border: 2px solid var(--sable-2); border-radius: 12px; cursor: pointer;
+  background: #fffdf8; transition: border-color .15s, transform .15s;
+}
+.tuile:hover { transform: translateY(-2px); }
+.tuile input { position: absolute; opacity: 0; pointer-events: none; }
+.tuile .t-ico { font-size: 1.7rem; }
+.tuile strong { font-family: var(--f-titre); text-transform: uppercase; font-size: 1.1rem; letter-spacing: .02em; color: var(--foret); line-height: 1.1; }
+.tuile small { color: var(--gris); line-height: 1.35; }
+.tuile em { font-style: normal; font-size: .85rem; font-weight: 600; color: var(--soleil-2); margin-top: auto; padding-top: .3rem; }
+.tuile:has(input:checked) { border-color: var(--soleil); background: #fff4ec; box-shadow: 0 0 0 3px rgba(224,122,63,.15); }
+.tuile:has(input:focus-visible) { outline: 3px solid var(--mousse); outline-offset: 2px; }
+
+/* Pilules */
+.pilules { display: flex; flex-wrap: wrap; gap: .5rem; }
+.pilules label { cursor: pointer; position: relative; }
+.pilules input { position: absolute; opacity: 0; }
+.pilules span {
+  display: inline-block; padding: .55rem 1.1rem; border-radius: 999px;
+  border: 2px solid var(--sable-2); font-weight: 600; background: #fffdf8;
+}
+.pilules input:checked + span { background: var(--foret); border-color: var(--foret); color: var(--sable); }
+.pilules input:focus-visible + span { outline: 3px solid var(--mousse); outline-offset: 2px; }
+
+/* Compteur +/- */
+.stepper { display: inline-flex; align-items: center; border: 2px solid var(--sable-2); border-radius: 12px; overflow: hidden; width: fit-content; }
+.stepper button { width: 46px; height: 46px; border: 0; background: var(--sable); font-size: 1.4rem; cursor: pointer; color: var(--foret); }
+.stepper button:hover { background: var(--sable-2); }
+.stepper input { width: 56px; text-align: center; border: 0; font: 700 1.2rem var(--f-texte); background: #fff; color: var(--texte); -moz-appearance: textfield; appearance: textfield; }
+.stepper input::-webkit-inner-spin-button { -webkit-appearance: none; }
+
+/* Bilans techniques (électricité / eau) */
+.bilan-tech { margin-top: 2rem; background: var(--foret); color: var(--sable); border-radius: var(--radius); padding: 1.5rem; }
+.bilan-tech h4 { font-family: var(--f-titre); text-transform: uppercase; font-size: 1.15rem; margin: 0 0 1rem; color: var(--soleil); letter-spacing: .05em; }
+.chiffres { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: .8rem; }
+.chiffres div { background: rgba(255,255,255,.07); border-radius: 10px; padding: .8rem 1rem; }
+.chiffres b { display: block; font-family: var(--f-titre); font-size: 1.8rem; line-height: 1.1; color: #fff; }
+.chiffres span { font-size: .85rem; color: var(--sable-2); }
+.bilan-tech .detail { font-size: .88rem; color: var(--sable-2); margin: 1rem 0 0; }
+.alerte { background: #fff1c2; color: #5b4300; border-radius: 10px; padding: .7rem 1rem; margin: 1rem 0 0; font-size: .92rem; }
+
+/* Checklist VASP */
+.checklist { list-style: none; padding: 0; margin: 0; display: grid; gap: .5rem; }
+.checklist li { display: flex; gap: .7rem; padding: .75rem 1rem; border-radius: 10px; background: #f3f6f1; align-items: flex-start; }
+.checklist li::before { content: "✓"; font-weight: 800; color: var(--foret-2); flex: none; width: .9rem; text-align: center; }
+.checklist li.manque { background: #fff1e8; }
+.checklist li.manque::before { content: "!"; color: var(--soleil-2); }
+.checklist small { display: block; color: var(--gris); }
+
+/* Navigation bas de formulaire */
+.nav-etapes { display: flex; justify-content: space-between; gap: 1rem; margin-top: 2.5rem; padding-top: 1.5rem; border-top: 1px solid var(--sable-2); }
+.actions-finales { display: flex; flex-wrap: wrap; gap: .8rem; margin: .5rem 0 .8rem; }
+
+/* Colonne estimation */
+.estimation {
+  position: sticky; top: 140px; background: var(--nuit); color: var(--sable);
+  border-radius: var(--radius); padding: 1.6rem; box-shadow: var(--ombre);
+  scroll-margin-top: 140px;
+}
+.estimation .surtitre { color: var(--soleil); }
+.est-lignes { margin: .2rem 0 1.2rem; display: grid; gap: .9rem; }
+.est-lignes div { display: grid; gap: .1rem; }
+.est-lignes dt { font-size: .85rem; color: var(--sable-2); font-weight: 600; text-transform: uppercase; letter-spacing: .06em; }
+.est-lignes dt small { text-transform: none; letter-spacing: 0; font-weight: 400; }
+.est-lignes dd { margin: 0; }
+.est-lignes dd b { display: block; font-family: var(--f-titre); font-weight: 700; font-size: 1.6rem; line-height: 1.1; color: #fff; }
+.est-lignes dd small { font-size: .82rem; color: var(--sable-2); }
+.est-lignes .est-total { border-top: 1px solid rgba(242,232,213,.2); padding-top: .9rem; }
+.est-lignes .est-total dd b { font-size: 2rem; color: var(--soleil); }
+.resume-tech { list-style: none; padding: 0; margin: 0 0 1rem; display: grid; gap: .35rem; font-size: .93rem; }
+.estimation details { border-top: 1px solid rgba(242,232,213,.2); padding-top: .8rem; }
+.estimation summary { cursor: pointer; font-weight: 600; color: var(--soleil); }
+.lignes-prix { list-style: none; padding: 0; margin: .7rem 0 0; font-size: .84rem; display: grid; gap: .35rem; max-height: 340px; overflow: auto; padding-right: .3rem; }
+.lignes-prix li { display: grid; grid-template-columns: 1fr auto; gap: 0 .8rem; padding-bottom: .35rem; border-bottom: 1px solid rgba(242,232,213,.08); }
+.lignes-prix li span:nth-child(2) { color: var(--sable-2); grid-column: 1; font-size: .8rem; }
+.lignes-prix li span:nth-child(2):empty { display: none; }
+.lignes-prix li span:last-child { grid-column: 2; grid-row: 1; white-space: nowrap; color: #fff; text-align: right; }
+.lignes-prix .externe span:first-child { font-style: italic; }
+.lignes-prix .entete-lignes { font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; color: var(--sable-2); }
+.lignes-prix .entete-lignes span:last-child { color: var(--sable-2); }
+.avert { font-size: .8rem; color: var(--sable-2); margin: 1rem 0 0; opacity: .85; }
+
+/* Récap */
+.recap-prix { display: grid; grid-template-columns: repeat(3, 1fr); gap: .8rem; margin-bottom: 1.5rem; }
+.recap-prix > div { background: #fbf6ec; border: 1px solid var(--sable-2); border-radius: 12px; padding: 1rem; }
+.recap-prix > div:last-child { background: #fff4ec; border: 2px solid var(--soleil); }
+.recap-prix span { font-size: .8rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--gris); }
+.recap-prix strong { font-family: var(--f-titre); font-size: 1.5rem; color: var(--foret); display: block; line-height: 1.15; margin: .2rem 0; }
+.recap-prix > div:last-child strong { color: var(--soleil-2); }
+.recap-prix small { color: var(--gris); }
+.recap-prix > p, .recap-prix p { grid-column: 1 / -1; margin: 0; }
+.recap-table { width: 100%; border-collapse: collapse; font-size: .95rem; }
+.recap-table th { text-align: left; width: 34%; color: var(--gris); font-weight: 600; padding: .5rem .8rem .5rem 0; vertical-align: top; border-bottom: 1px solid var(--sable); }
+.recap-table td { padding: .5rem 0; border-bottom: 1px solid var(--sable); }
+.page-config .message-form { margin-top: 1rem; }
+.page-config .mention-rgpd { margin: 1rem 0; }
+
+/* Barre de prix fixe (tablette / mobile) */
+.barre-prix { display: none; }
+
+/* ---------- Tablette paysage ---------- */
+@media (max-width: 1100px) {
+  .config-layout { grid-template-columns: minmax(0, 1fr) 300px; gap: 1.5rem; }
+  .tuiles--4 { grid-template-columns: repeat(2, 1fr); }
+  .recap-prix { grid-template-columns: 1fr; }
+}
+
+/* ---------- Tablette portrait et mobile ---------- */
+@media (max-width: 820px) {
+  .config-layout { grid-template-columns: 1fr; padding-bottom: 7rem; }
+  .estimation { position: static; scroll-margin-top: 130px; }
+  .barre-prix {
+    display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
+    background: var(--nuit); color: var(--sable); padding: .7rem 1.2rem calc(.7rem + env(safe-area-inset-bottom));
+    box-shadow: 0 -6px 20px rgba(0,0,0,.2);
+  }
+  .barre-prix small { display: block; font-size: .75rem; color: var(--sable-2); text-transform: uppercase; letter-spacing: .06em; }
+  .barre-prix b { font-family: var(--f-titre); font-size: 1.35rem; color: var(--soleil); }
+  .page-config .pied { padding-bottom: 6rem; }
+}
+
+/* ---------- Téléphone ---------- */
+@media (max-width: 560px) {
+  .config-hero { padding: 2.2rem 0 2rem; }
+  .principe li { max-width: none; }
+  .tuiles--3, .champs-2 { grid-template-columns: 1fr; }
+  .tuiles--4 { grid-template-columns: 1fr 1fr; gap: .6rem; }
+  .tuiles--4 .tuile { padding: .8rem; }
+  .tuiles--4 .tuile small { font-size: .82rem; }
+  .tuile strong { font-size: 1rem; }
+  .progression button { padding: .8rem .55rem; font-size: .9rem; }
+  .nav-etapes .btn, .actions-finales .btn { flex: 1; justify-content: center; padding-inline: 1rem; }
+  .recap-table th, .recap-table td { display: block; width: 100%; padding: .2rem 0; }
+  .recap-table th { border-bottom: 0; padding-top: .7rem; }
+  .bilan-tech { padding: 1.1rem; }
+  .chiffres { grid-template-columns: 1fr 1fr; }
+  .chiffres b { font-size: 1.5rem; }
+  .cases { grid-template-columns: 1fr; }
+}
