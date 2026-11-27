@@ -133,7 +133,6 @@ textarea { min-height: 70px; resize: vertical; }
 dialog { border: 0; border-radius: var(--rayon); padding: 1.25rem; width: min(560px, 94vw); }
 dialog::backdrop { background: rgba(0,0,0,.35); }
 
-#impression { display: none; }
 
 .bandeau {
   display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .75rem;
@@ -164,7 +163,7 @@ dialog::backdrop { background: rgba(0,0,0,.35); }
   .barre { justify-content: center; padding-top: calc(.6rem + env(safe-area-inset-top)); padding-bottom: .6rem; }
   #menu {
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 10;
-    display: grid; grid-template-columns: repeat(6, 1fr); gap: 0;
+    display: grid; grid-template-columns: repeat(5, 1fr); gap: 0;
     background: var(--vert); border-top: 1px solid rgba(255,255,255,.15);
     padding: .3rem env(safe-area-inset-right) calc(.3rem + env(safe-area-inset-bottom)) env(safe-area-inset-left);
   }
@@ -199,29 +198,19 @@ dialog::backdrop { background: rgba(0,0,0,.35); }
   .liste .cache-mobile { display: none; }
 }
 
-/* ---------- Document imprimé (devis / facture) ---------- */
-.doc { font-size: 10.5pt; color: #111; }
-.doc .haut { display: flex; justify-content: space-between; gap: 2rem; margin-bottom: 1.5rem; }
-.doc .emetteur strong { font-size: 14pt; color: var(--vert); }
-.doc .titre-doc { text-align: right; }
-.doc .titre-doc h1 { margin: 0; font-size: 20pt; color: var(--vert); letter-spacing: .04em; }
-.doc .destinataire { margin-left: auto; width: 48%; border: 1px solid #ccc; border-radius: 6px; padding: .6rem .8rem; margin-bottom: 1.2rem; }
-.doc table { width: 100%; border-collapse: collapse; margin: .8rem 0; }
-.doc th { background: var(--vert); color: #fff; text-align: left; padding: .4rem .5rem; font-size: 9.5pt; }
-.doc td { padding: .4rem .5rem; border-bottom: 1px solid #ddd; vertical-align: top; }
-.doc .num { text-align: right; white-space: nowrap; }
-.doc .info td { color: #555; font-style: italic; }
-.doc .totaux-doc { margin-left: auto; width: 45%; }
-.doc .totaux-doc td { border: 0; padding: .2rem .5rem; }
-.doc .totaux-doc .grand td { font-size: 12.5pt; font-weight: 700; border-top: 2px solid var(--vert); }
-.doc .mentions { margin-top: 1.5rem; font-size: 8.5pt; color: #444; line-height: 1.45; }
-.doc .signature { margin-top: 1.5rem; display: flex; justify-content: space-between; gap: 2rem; }
-.doc .signature div { width: 48%; border: 1px dashed #aaa; border-radius: 6px; min-height: 90px; padding: .5rem; font-size: 9pt; }
+/* Tableau de bord : tuiles cliquables */
+a.tuile { color: inherit; text-decoration: none; }
+a.tuile:hover { border-color: var(--vert); }
 
-@media print {
-  @page { size: A4; margin: 14mm; }
-  body { background: #fff; }
-  .barre, main, dialog, .bandeau { display: none !important; }
-  #impression { display: block; }
-  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-}
+/* Rendez-vous */
+.liste-rdv { list-style: none; padding: 0; margin: 0; display: grid; gap: .6rem; }
+.liste-rdv li { display: flex; flex-direction: column; gap: .2rem; }
+.rdv-quand { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+h2.jour::first-letter { text-transform: uppercase; }
+.liste-simple { padding-left: 1.2rem; }
+.bloc-indy { display: flex; flex-wrap: wrap; gap: .6rem 1rem; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+label.case { flex-direction: row; align-items: center; gap: .5rem; color: var(--texte); }
+label.case input { min-height: 0; width: 20px; height: 20px; }
+label[hidden] { display: none; }
+.erreur { color: var(--rouge); }
+.erreur:empty { display: none; }

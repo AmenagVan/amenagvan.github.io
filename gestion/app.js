@@ -1,41 +1,40 @@
 /* ==========================================================
    Aménag'Van — appli de gestion (bêta)
-   Tout est stocké dans le navigateur (localStorage) : rien ne
-   part sur Internet. Pensez à « Exporter une sauvegarde ».
+   Rôle : recevoir les demandes du site, tenir les fiches clients,
+   préparer les rendez-vous (Google Agenda) et les exports vers Indy.
+   Les devis et factures se font dans Indy (gratuit, facture électronique).
+   Données stockées sur l'appareil (localStorage) : rien n'est envoyé,
+   sauf la lecture des demandes sur le script Google de l'atelier.
    ========================================================== */
 "use strict";
 
 const CLE = "amenagvan-gestion-v1";
-const TARIFS = window.TARIFS || { taux: 40, tvaMention: "TVA non applicable, art. 293 B du CGI" };
+const URL_INDY = "https://app.indy.fr/";
 
 /* ---------------- Données ---------------- */
 function base() {
   return {
     reglages: {
       nom: "Aménag'Van",
-      responsable: "",
-      adresse: "",
-      cpVille: "79700 Mauléon",
-      siret: "",
-      tel: "07 57 57 03 90",
-      email: "ethan79pro@gmail.com",
-      taux: TARIFS.taux,
-      validite: 30,
-      delai: 30,
-      iban: "",
-      prochainDevis: 1,
-      prochaineFacture: 1,
+      compteAgenda: "ethan79pro@gmail.com",
+      lieuAtelier: "Atelier Aménag'Van, 79700 Mauléon",
+      urlRdv: "",
       urlDemandes: "",
       cleDemandes: "",
       dernierIdDemande: 0,
       derniereSynchro: "",
+      derniereSauvegarde: "",
     },
     clients: [],
-    devis: [],
-    factures: [],
     demandes: [],
+    rdv: [],
   };
 }
+
+const CLIENT_VIDE = {
+  id: "", type: "particulier", societe: "", prenom: "", nom: "", tel: "", email: "",
+  adresse: "", cp: "", ville: "", vehicule: "", immat: "", notes: "", exporteIndy: "",
+};
 
 let db = charger();
 function charger() {
@@ -44,7 +43,19 @@ function charger() {
     if (!brut) return base();
     const d = JSON.parse(brut);
     const b = base();
-    return { ...b, ...d, reglages: { ...b.reglages, ...d.reglages } };
+    // Les anciennes données (devis/factures de la 1re bêta) sont conservées telles quelles
+    const r = { ...b, ...d, reglages: { ...b.reglages, ...d.reglages } };
+    r.clients = (r.clients || []).map((c) => {
+      // 1re bêta : « nom » contenait prénom + nom → on sépare (le 1er mot devient le prénom)
+      if (!("prenom" in c) && /\s/.test(String(c.nom || "").trim())) {
+        const [prenom, ...reste] = c.nom.trim().split(/\s+/);
+        c = { ...c, prenom, nom: reste.join(" ") };
+      }
+      return { ...CLIENT_VIDE, ...c };
+    });
+    r.demandes = r.demandes || [];
+    r.rdv = r.rdv || [];
+    return r;
   } catch (e) {
     alert("Les données enregistrées sont illisibles. Restaurez une sauvegarde depuis Réglages.");
     return base();
@@ -58,51 +69,28 @@ function sauver() {
 const $ = (s, r = document) => r.querySelector(s);
 const id = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
 const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-const euros = (n) => (Number(n) || 0).toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
-const nb = (v) => { const n = parseFloat(String(v).replace(",", ".")); return isFinite(n) ? n : 0; };
-const aujourdhui = () => new Date().toISOString().slice(0, 10);
-const dateFr = (iso) => (iso ? new Date(iso + "T12:00:00").toLocaleDateString("fr-FR") : "—");
+const pad = (n) => String(n).padStart(2, "0");
+const isoLocal = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const aujourdhui = () => isoLocal(new Date());
+const dateFr = (iso) => (iso ? new Date(iso.slice(0, 10) + "T12:00:00").toLocaleDateString("fr-FR") : "—");
+const jourLong = (iso) => new Date(iso + "T12:00:00").toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
+const dateHeure = (iso) => (iso ? new Date(iso).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" }) : "—");
 function plusJours(iso, j) {
   const d = new Date(iso + "T12:00:00");
   d.setDate(d.getDate() + Number(j || 0));
-  return d.toISOString().slice(0, 10);
+  return isoLocal(d);
 }
 const client = (cid) => db.clients.find((c) => c.id === cid);
-const nomClient = (cid) => client(cid)?.nom || "Client supprimé";
-function numero(prefixe, n, date) {
-  return `${prefixe}-${(date || aujourdhui()).slice(0, 4)}-${String(n).padStart(3, "0")}`;
-}
-
-const TYPES = {
-  mo: "Main d'œuvre (h)",
-  forfait: "Prestation forfait",
-  info: "Matériel client (info)",
-};
-function totalLigne(l) {
-  return l.type === "info" ? 0 : Math.round(nb(l.qte) * nb(l.pu) * 100) / 100;
-}
-function total(doc) {
-  return doc.lignes.reduce((s, l) => s + totalLigne(l), 0);
-}
-function heures(doc) {
-  return doc.lignes.filter((l) => l.type === "mo").reduce((s, l) => s + nb(l.qte), 0);
-}
-function enRetard(f) {
-  return !f.payee && f.echeance && f.echeance < aujourdhui();
-}
-
-const STATUTS_DEVIS = { brouillon: "Brouillon", envoye: "Envoyé", accepte: "Accepté", refuse: "Refusé" };
-const pastilleDevis = (d) => `<span class="pastille ${d.statut}">${STATUTS_DEVIS[d.statut]}</span>`;
-const pastilleFacture = (f) =>
-  f.payee
-    ? `<span class="pastille payee">Payée le ${dateFr(f.datePaiement)}</span>`
-    : enRetard(f)
-    ? `<span class="pastille retard">En retard</span>`
-    : `<span class="pastille impayee">À encaisser</span>`;
+const nomComplet = (c) => (c ? [c.prenom, c.nom].filter(Boolean).join(" ") || c.societe || "Sans nom" : "Client supprimé");
+const chiffres = (t) => String(t || "").replace(/\D/g, "");
+const lienTel = (t) => { const n = chiffres(t); return n ? (n.startsWith("33") ? "+" + n : n) : ""; };
 
 /* ---------------- Navigation ---------------- */
 const VUES = {};
+let vueCourante = { nom: "accueil", args: [] };
+const rafraichir = () => aller(vueCourante.nom, ...vueCourante.args);
 function aller(nom, ...args) {
+  vueCourante = { nom, args };
   document.querySelectorAll("#menu button").forEach((b) =>
     b.classList.toggle("actif", b.dataset.vue === nom.split("-")[0])
   );
@@ -116,41 +104,181 @@ $("#menu").addEventListener("click", (e) => {
   if (b) aller(b.dataset.vue);
 });
 
+/* ---------------- Rendez-vous ---------------- */
+const TYPES_RDV = {
+  rdv: "Rendez-vous",
+  diagnostic: "Diagnostic du van",
+  chantier: "Chantier",
+  livraison: "Remise des clés",
+  autre: "Autre",
+};
+const rdvAVenir = () =>
+  db.rdv.filter((r) => (r.fin || r.debut).slice(0, 10) >= aujourdhui()).sort((a, b) => a.debut.localeCompare(b.debut));
+
+function lienAgenda(r) {
+  const c = client(r.clientId);
+  const compact = (s) => s.replace(/[-:]/g, "");
+  const dates = r.journee
+    ? `${compact(r.debut)}/${compact(plusJours(r.fin || r.debut, 1))}`
+    : `${compact(r.debut)}00/${compact(r.fin)}00`;
+  const details = [
+    c && `Client : ${nomComplet(c)}`,
+    c?.tel && `Tél : ${c.tel}`,
+    c?.email && `E-mail : ${c.email}`,
+    c?.vehicule && `Véhicule : ${c.vehicule}${c.immat ? " (" + c.immat + ")" : ""}`,
+    r.notes,
+    c?.notes && `Notes client : ${c.notes}`,
+  ].filter(Boolean).join("\n");
+  const p = new URLSearchParams({ action: "TEMPLATE", text: r.titre, dates, ctz: "Europe/Paris", details, location: r.lieu || "" });
+  if (db.reglages.compteAgenda) p.set("authuser", db.reglages.compteAgenda);
+  return "https://calendar.google.com/calendar/render?" + p.toString();
+}
+function lienOuvrirAgenda() {
+  const compte = db.reglages.compteAgenda;
+  return "https://calendar.google.com/calendar/r" + (compte ? "?authuser=" + encodeURIComponent(compte) : "");
+}
+function horaire(r) {
+  if (r.journee) return r.fin && r.fin !== r.debut ? `du ${dateFr(r.debut)} au ${dateFr(r.fin)}` : `${dateFr(r.debut)}, journée`;
+  return `${dateFr(r.debut)}, ${r.debut.slice(11, 16).replace(":", "h")} – ${r.fin.slice(11, 16).replace(":", "h")}`;
+}
+function listeRdv(liste, avecClient = true) {
+  if (!liste.length) return `<p class="note">Aucun rendez-vous prévu.</p>`;
+  return `<ul class="liste-rdv">${liste.map((r) => `
+    <li class="carte">
+      <div class="rdv-quand"><strong>${esc(horaire(r))}</strong><span class="pastille">${esc(TYPES_RDV[r.type] || "Rendez-vous")}</span></div>
+      <div>${esc(r.titre)}${avecClient && client(r.clientId) ? ` · <a href="#" data-client="${r.clientId}">${esc(nomComplet(client(r.clientId)))}</a>` : ""}</div>
+      ${r.lieu ? `<div class="note">${esc(r.lieu)}</div>` : ""}
+      <div class="actions" style="justify-content:flex-start;margin-top:.4rem">
+        <a class="btn secondaire petit" href="${esc(lienAgenda(r))}" target="_blank" rel="noopener">Ajouter / revoir dans Google Agenda</a>
+        <button class="btn danger petit" data-action="suppr-rdv" data-id="${r.id}">Retirer</button>
+      </div>
+    </li>`).join("")}</ul>`;
+}
+
+// Fenêtre « Planifier un rendez-vous » ; enregistre le rdv et ouvre Google Agenda pré-rempli
+function ouvrirRdv(cid, apres) {
+  const c = client(cid);
+  const dlg = $("#fenetre");
+  const r = db.reglages;
+  const demain = plusJours(aujourdhui(), 1);
+  const options = db.clients.slice().sort((a, b) => nomComplet(a).localeCompare(nomComplet(b), "fr"))
+    .map((x) => `<option value="${x.id}" ${x.id === cid ? "selected" : ""}>${esc(nomComplet(x))}</option>`).join("");
+  const adresseClient = c ? [c.adresse, [c.cp, c.ville].filter(Boolean).join(" ")].filter(Boolean).join(", ") : "";
+  $("#fenetre-form").innerHTML = `
+    <h2 style="margin-top:0">Planifier un rendez-vous</h2>
+    <div class="grille">
+      <label class="plein">Client<select name="clientId" required><option value="">— Choisir —</option>${options}</select></label>
+      <label>Type<select name="type">${Object.entries(TYPES_RDV).map(([k, v]) => `<option value="${k}">${v}</option>`).join("")}</select></label>
+      <label>Date<input type="date" name="date" value="${demain}" required></label>
+      <label class="case plein"><input type="checkbox" name="journee"> Toute la journée / plusieurs jours (chantier)</label>
+      <label data-heure>Heure<input type="time" name="heure" value="09:00" step="900"></label>
+      <label data-heure>Durée<select name="duree"><option value="30">30 min</option><option value="60" selected>1 h</option><option value="120">2 h</option><option value="240">Demi-journée (4 h)</option></select></label>
+      <label data-jours hidden>Jusqu'au (inclus)<input type="date" name="fin" value="${demain}"></label>
+      <label class="plein">Lieu<select name="lieuChoix">
+        <option value="atelier">${esc(r.lieuAtelier || "Atelier")}</option>
+        ${adresseClient ? `<option value="client">Chez le client : ${esc(adresseClient)}</option>` : ""}
+      </select></label>
+      <label class="plein">Note (facultatif)<input name="notes" placeholder="ex. apporter le van vide, prévoir les clés"></label>
+    </div>
+    <p class="note">Google Agenda s'ouvre ensuite avec le rendez-vous pré-rempli : il suffit de cliquer sur « Enregistrer ».</p>
+    <p class="note erreur" id="erreur-rdv" role="alert"></p>
+    <div class="barre-actions"><button class="btn" type="submit">Planifier</button><button class="btn secondaire" type="button" data-fermer>Annuler</button></div>`;
+  const f = $("#fenetre-form");
+  const majChamps = () => {
+    const j = f.journee.checked;
+    f.querySelectorAll("[data-heure]").forEach((x) => (x.hidden = j));
+    f.querySelectorAll("[data-jours]").forEach((x) => (x.hidden = !j));
+    if (j && f.fin.value < f.date.value) f.fin.value = f.date.value;
+  };
+  f.journee.addEventListener("change", majChamps);
+  f.date.addEventListener("change", majChamps);
+  f.type.addEventListener("change", () => { if (f.type.value === "chantier" && !f.journee.checked) { f.journee.checked = true; majChamps(); } });
+  f.querySelector("[data-fermer]").addEventListener("click", () => dlg.close());
+  f.onsubmit = (e) => {
+    e.preventDefault();
+    const d = Object.fromEntries(new FormData(f));
+    const err = $("#erreur-rdv");
+    const cl = client(d.clientId);
+    if (!cl) { err.textContent = "Choisissez un client."; return; }
+    if (!d.date) { err.textContent = "Choisissez une date."; return; }
+    const journee = !!d.journee;
+    let debut, fin;
+    if (journee) {
+      debut = d.date;
+      fin = d.fin && d.fin >= d.date ? d.fin : d.date;
+    } else {
+      if (!d.heure) { err.textContent = "Choisissez une heure."; return; }
+      debut = `${d.date}T${d.heure}`;
+      const fd = new Date(`${d.date}T${d.heure}:00`);
+      fd.setMinutes(fd.getMinutes() + Number(d.duree || 60));
+      fin = `${isoLocal(fd)}T${pad(fd.getHours())}:${pad(fd.getMinutes())}`;
+    }
+    const adr = [cl.adresse, [cl.cp, cl.ville].filter(Boolean).join(" ")].filter(Boolean).join(", ");
+    const rdv = {
+      id: id(), clientId: cl.id, type: d.type, journee, debut, fin,
+      titre: `${TYPES_RDV[d.type]} — ${nomComplet(cl)}${cl.vehicule ? " (" + cl.vehicule + ")" : ""}`,
+      lieu: d.lieuChoix === "client" && adr ? adr : r.lieuAtelier,
+      notes: (d.notes || "").trim(),
+    };
+    db.rdv.push(rdv);
+    if (apres) apres(rdv);
+    sauver();
+    window.open(lienAgenda(rdv), "_blank", "noopener"); // dans le clic : pas bloqué par le navigateur
+    dlg.close();
+    rafraichir();
+  };
+  majChamps();
+  dlg.showModal();
+}
+
 /* ---------------- Tableau de bord ---------------- */
 VUES.accueil = () => {
-  const an = aujourdhui().slice(0, 4);
-  const facturesAn = db.factures.filter((f) => f.date.startsWith(an));
-  const encaisse = facturesAn.filter((f) => f.payee).reduce((s, f) => s + total(f), 0);
-  const aEncaisser = db.factures.filter((f) => !f.payee).reduce((s, f) => s + total(f), 0);
-  const retards = db.factures.filter(enRetard);
-  const devisOuverts = db.devis.filter((d) => d.statut === "envoye");
-  const hAn = facturesAn.reduce((s, f) => s + heures(f), 0);
-  const r = db.reglages;
-  const incomplet = !r.siret || !r.responsable || !r.adresse;
-
+  const prochains = rdvAVenir();
+  const semaine = prochains.filter((r) => r.debut.slice(0, 10) <= plusJours(aujourdhui(), 7));
+  const aExporter = db.clients.filter((c) => !c.exporteIndy).length;
   $("#vue").innerHTML = `
     <h1>Tableau de bord</h1>
     ${rappelSauvegarde() ? `<div class="alerte">Pensez à <a href="#" data-aller="reglages">exporter une sauvegarde</a> : les données ne sont que sur cet appareil.</div>` : ""}
-    ${incomplet ? `<div class="alerte">Pour des devis et factures valables, complétez <a href="#" data-aller="reglages">vos réglages</a> (nom du responsable, adresse, SIRET).</div>` : ""}
     ${nouvellesDemandes() ? `<a href="#" class="alerte nouvelles" data-aller="demandes"><strong>${nouvellesDemandes()} nouvelle(s) demande(s)</strong> reçue(s) depuis le site → les voir</a>` : ""}
     <div class="tuiles">
-      <div class="carte tuile"><div class="libelle">Encaissé en ${an}</div><div class="valeur">${euros(encaisse)}</div></div>
-      <div class="carte tuile"><div class="libelle">Reste à encaisser</div><div class="valeur">${euros(aEncaisser)}</div></div>
-      <div class="carte tuile"><div class="libelle">Devis en attente de réponse</div><div class="valeur">${devisOuverts.length}</div></div>
-      <div class="carte tuile"><div class="libelle">Heures facturées en ${an}</div><div class="valeur">${hAn.toLocaleString("fr-FR")} h</div></div>
+      <a href="#" class="carte tuile" data-aller="demandes"><div class="libelle">Nouvelles demandes</div><div class="valeur">${nouvellesDemandes()}</div></a>
+      <a href="#" class="carte tuile" data-aller="planning"><div class="libelle">Rendez-vous dans les 7 jours</div><div class="valeur">${semaine.length}</div></a>
+      <a href="#" class="carte tuile" data-aller="clients"><div class="libelle">Clients</div><div class="valeur">${db.clients.length}</div></a>
+      <a href="#" class="carte tuile" data-aller="clients"><div class="libelle">Clients pas encore dans Indy</div><div class="valeur">${aExporter}</div></a>
     </div>
-    <p class="note">Micro-entreprise : le chiffre d'affaires à déclarer à l'Urssaf, c'est ce qui est <strong>encaissé</strong>, pas ce qui est facturé.</p>
 
     <div class="barre-actions">
-      <button class="btn" data-action="nouveau-devis">+ Nouveau devis</button>
-      <button class="btn secondaire" data-action="nouveau-client">+ Nouveau client</button>
+      <button class="btn" data-action="nouveau-rdv">+ Rendez-vous</button>
+      <button class="btn secondaire" data-action="nouveau-client">+ Client</button>
+      <a class="btn secondaire" href="${URL_INDY}" target="_blank" rel="noopener">Ouvrir Indy (devis, factures)</a>
+      <a class="btn secondaire" href="${esc(lienOuvrirAgenda())}" target="_blank" rel="noopener">Ouvrir Google Agenda</a>
     </div>
 
-    <h2>Factures en retard</h2>
-    ${retards.length ? tableFactures(retards) : `<p class="note">Aucune, tout va bien.</p>`}
+    <h2>Prochains rendez-vous</h2>
+    ${listeRdv(prochains.slice(0, 5))}
+    ${prochains.length > 5 ? `<p><a href="#" data-aller="planning">Voir les ${prochains.length} rendez-vous →</a></p>` : ""}
+  `;
+};
 
-    <h2>Devis envoyés, sans réponse</h2>
-    ${devisOuverts.length ? tableDevis(devisOuverts) : `<p class="note">Aucun.</p>`}
+/* ---------------- Planning ---------------- */
+VUES.planning = () => {
+  const prochains = rdvAVenir();
+  const parJour = {};
+  prochains.forEach((r) => (parJour[r.debut.slice(0, 10)] ??= []).push(r));
+  const passes = db.rdv.filter((r) => !prochains.includes(r)).sort((a, b) => b.debut.localeCompare(a.debut)).slice(0, 10);
+  $("#vue").innerHTML = `
+    <div class="entete">
+      <h1>Planning</h1>
+      <div class="actions">
+        <a class="btn secondaire" href="${esc(lienOuvrirAgenda())}" target="_blank" rel="noopener">Ouvrir Google Agenda</a>
+        <button class="btn" data-action="nouveau-rdv">+ Rendez-vous</button>
+      </div>
+    </div>
+    <p class="note">Les rendez-vous planifiés depuis l'appli. Google Agenda reste la référence : un rendez-vous modifié ou supprimé là-bas ne se met pas à jour ici.</p>
+    ${Object.keys(parJour).length ? Object.entries(parJour).map(([jour, liste]) => `
+      <h2 class="jour">${jour === aujourdhui() ? "Aujourd'hui" : jour === plusJours(aujourdhui(), 1) ? "Demain" : esc(jourLong(jour))}</h2>
+      ${listeRdv(liste)}`).join("") : `<div class="carte vide">Aucun rendez-vous à venir.</div>`}
+    ${passes.length ? `<details style="margin-top:1.5rem"><summary>Rendez-vous passés (${passes.length})</summary>${listeRdv(passes)}</details>` : ""}
   `;
 };
 
@@ -158,8 +286,9 @@ VUES.accueil = () => {
 VUES.clients = (filtre = "") => {
   const f = filtre.toLowerCase();
   const liste = db.clients
-    .filter((c) => !f || [c.nom, c.tel, c.email, c.vehicule, c.immat].join(" ").toLowerCase().includes(f))
-    .sort((a, b) => a.nom.localeCompare(b.nom, "fr"));
+    .filter((c) => !f || [nomComplet(c), c.societe, c.tel, c.email, c.vehicule, c.immat, c.ville].join(" ").toLowerCase().includes(f))
+    .sort((a, b) => (a.nom || a.prenom).localeCompare(b.nom || b.prenom, "fr"));
+  const aExporter = db.clients.filter((c) => !c.exporteIndy).length;
   $("#vue").innerHTML = `
     <div class="entete">
       <h1>Clients</h1>
@@ -168,18 +297,23 @@ VUES.clients = (filtre = "") => {
         <button class="btn" data-action="nouveau-client">+ Nouveau client</button>
       </div>
     </div>
+    ${db.clients.length ? `<div class="carte bloc-indy">
+      <div><strong>Indy</strong> — ${aExporter ? `${aExporter} client(s) pas encore importé(s).` : "tous les clients sont importés."}</div>
+      <div class="actions"><button class="btn secondaire petit" data-action="export-indy">Exporter pour Indy (CSV)</button>
+      <a class="btn secondaire petit" href="${URL_INDY}" target="_blank" rel="noopener">Ouvrir Indy</a></div>
+    </div>` : ""}
     ${liste.length ? `
     <table class="liste">
-      <thead><tr><th>Nom</th><th class="cache-mobile">Contact</th><th>Véhicule</th><th class="num cache-mobile">Facturé</th></tr></thead>
+      <thead><tr><th>Nom</th><th class="cache-mobile">Contact</th><th>Véhicule</th><th class="cache-mobile">Indy</th></tr></thead>
       <tbody>${liste.map((c) => `
         <tr class="cliquable" data-client="${c.id}">
-          <td><strong>${esc(c.nom)}</strong></td>
+          <td><strong>${esc(nomComplet(c))}</strong>${c.ville ? `<br><span class="note">${esc(c.ville)}</span>` : ""}</td>
           <td class="cache-mobile">${esc(c.tel)}<br><span class="note">${esc(c.email)}</span></td>
           <td>${esc(c.vehicule)}${c.immat ? `<br><span class="note">${esc(c.immat)}</span>` : ""}</td>
-          <td class="num cache-mobile">${euros(db.factures.filter((x) => x.clientId === c.id).reduce((s, x) => s + total(x), 0))}</td>
+          <td class="cache-mobile">${c.exporteIndy ? `<span class="pastille accepte">Importé</span>` : `<span class="pastille">À importer</span>`}</td>
         </tr>`).join("")}
       </tbody>
-    </table>` : `<div class="carte vide">${filtre ? "Aucun client ne correspond." : "Pas encore de client. Commencez par en ajouter un."}</div>`}
+    </table>` : `<div class="carte vide">${filtre ? "Aucun client ne correspond." : "Pas encore de client. Ajoutez-en un, ou créez-le depuis une demande du site."}</div>`}
   `;
   const champ = $("#cherche-client");
   champ.addEventListener("input", () => {
@@ -192,586 +326,129 @@ VUES.clients = (filtre = "") => {
 };
 
 VUES["clients-fiche"] = (cid) => {
-  const c = cid ? client(cid) : { id: "", nom: "", tel: "", email: "", adresse: "", vehicule: "", immat: "", notes: "" };
+  const c = cid ? client(cid) : { ...CLIENT_VIDE };
   if (!c) return aller("clients");
-  const devis = db.devis.filter((d) => d.clientId === cid);
-  const factures = db.factures.filter((f) => f.clientId === cid);
+  const rdv = db.rdv.filter((r) => r.clientId === cid).sort((a, b) => b.debut.localeCompare(a.debut));
+  const demandes = db.demandes.filter((d) => d.clientId === cid);
+  const v = (k) => esc(c[k]);
   $("#vue").innerHTML = `
-    <h1>${cid ? esc(c.nom) : "Nouveau client"}</h1>
-    <form id="form-client" class="carte">
+    <div class="entete">
+      <h1>${cid ? esc(nomComplet(c)) : "Nouveau client"}</h1>
+      ${cid ? (c.exporteIndy ? `<span class="pastille accepte">Dans Indy depuis le ${dateFr(c.exporteIndy)}</span>` : `<span class="pastille">Pas encore dans Indy</span>`) : ""}
+    </div>
+    ${cid && (c.tel || c.email) ? `<div class="barre-actions" style="margin:0 0 1rem">
+      ${c.tel ? `<a class="btn secondaire" href="tel:${esc(lienTel(c.tel))}">Appeler</a>` : ""}
+      ${c.email ? `<a class="btn secondaire" href="mailto:${esc(c.email)}">E-mail</a>` : ""}
+      <button class="btn" data-action="nouveau-rdv" data-pour="${cid}">Planifier un rendez-vous</button>
+    </div>` : ""}
+    <form id="form-client" class="carte" novalidate>
       <div class="grille">
-        <label>Nom et prénom *<input name="nom" required value="${esc(c.nom)}"></label>
-        <label>Téléphone<input name="tel" type="tel" value="${esc(c.tel)}"></label>
-        <label>E-mail<input name="email" type="email" value="${esc(c.email)}"></label>
-        <label class="plein">Adresse<input name="adresse" value="${esc(c.adresse)}" placeholder="N°, rue, code postal, ville"></label>
-        <label>Véhicule<input name="vehicule" value="${esc(c.vehicule)}" placeholder="ex. Renault Trafic L2H1 2018"></label>
-        <label>Immatriculation<input name="immat" value="${esc(c.immat)}" placeholder="AA-123-BB"></label>
-        <label class="plein">Notes<textarea name="notes" placeholder="Envies, contraintes, budget…">${esc(c.notes)}</textarea></label>
+        <label>Type<select name="type">
+          <option value="particulier" ${c.type !== "pro" ? "selected" : ""}>Particulier</option>
+          <option value="pro" ${c.type === "pro" ? "selected" : ""}>Professionnel</option></select></label>
+        <label data-pro ${c.type === "pro" ? "" : "hidden"}>Société<input name="societe" value="${v("societe")}"></label>
+        <label>Prénom<input name="prenom" value="${v("prenom")}" autocomplete="off"></label>
+        <label>Nom *<input name="nom" value="${v("nom")}" autocomplete="off"></label>
+        <label>Téléphone<input name="tel" type="tel" value="${v("tel")}"></label>
+        <label>E-mail<input name="email" type="email" value="${v("email")}"></label>
+        <label class="plein">Adresse<input name="adresse" value="${v("adresse")}" placeholder="N° et rue"></label>
+        <label>Code postal<input name="cp" inputmode="numeric" value="${v("cp")}"></label>
+        <label>Ville<input name="ville" value="${v("ville")}"></label>
+        <label>Véhicule<input name="vehicule" value="${v("vehicule")}" placeholder="ex. Renault Trafic L2H1 2018"></label>
+        <label>Immatriculation<input name="immat" value="${v("immat")}" placeholder="AA-123-BB"></label>
+        <label class="plein">Notes<textarea name="notes" placeholder="Envies, contraintes, budget…">${v("notes")}</textarea></label>
       </div>
+      <p class="note erreur" id="erreur-client" role="alert"></p>
       <div class="barre-actions">
         <button class="btn" type="submit">Enregistrer</button>
         <button class="btn secondaire" type="button" data-aller="clients">Retour</button>
-        ${cid ? `<button class="btn secondaire" type="button" data-action="nouveau-devis" data-pour="${cid}">+ Devis pour ce client</button>
+        ${cid ? `<button class="btn secondaire" type="button" data-action="copier-indy" data-id="${cid}">Copier les infos pour Indy</button>
+                 <button class="btn secondaire" type="button" data-action="marquer-indy" data-id="${cid}">${c.exporteIndy ? "Marquer « pas dans Indy »" : "Marquer « déjà dans Indy »"}</button>
                  <button class="btn danger" type="button" data-action="suppr-client" data-id="${cid}">Supprimer</button>` : ""}
       </div>
     </form>
     ${cid ? `
-      <h2>Devis</h2>${devis.length ? tableDevis(devis) : `<p class="note">Aucun devis.</p>`}
-      <h2>Factures</h2>${factures.length ? tableFactures(factures) : `<p class="note">Aucune facture.</p>`}` : ""}
+      <h2>Rendez-vous</h2>${listeRdv(rdv, false)}
+      ${demandes.length ? `<h2>Demandes reçues du site</h2><ul class="liste-simple">${demandes.map((d) => `<li><a href="#" data-demande="${d.id}">${esc(infoDemande(d).type)} — ${dateHeure(d.date)}</a></li>`).join("")}</ul>` : ""}` : ""}
   `;
-  $("#form-client").addEventListener("submit", (e) => {
+  const form = $("#form-client");
+  form.type.addEventListener("change", () => (form.querySelector("[data-pro]").hidden = form.type.value !== "pro"));
+  form.addEventListener("submit", (e) => {
     e.preventDefault();
-    const d = Object.fromEntries(new FormData(e.target));
-    d.nom = d.nom.trim();
-    if (!d.nom) return;
+    const d = Object.fromEntries(new FormData(form));
+    Object.keys(d).forEach((k) => (d[k] = String(d[k]).trim()));
+    $("#erreur-client").textContent = "";
+    if (!d.nom && !d.prenom && !d.societe) { $("#erreur-client").textContent = "Indiquez au moins un nom."; form.nom.focus(); return; }
+    if (d.email && !form.email.checkValidity()) { $("#erreur-client").textContent = "L'adresse e-mail n'est pas valide."; form.email.focus(); return; }
+    if (d.type !== "pro") d.societe = "";
+    let cible = c;
     if (cid) Object.assign(c, d);
-    else db.clients.push({ id: id(), ...d });
+    else { cible = { ...CLIENT_VIDE, ...d, id: id() }; db.clients.push(cible); }
     sauver();
-    aller("clients");
+    aller("clients-fiche", cible.id);
   });
 };
 
-/* ---------------- Listes devis / factures ---------------- */
-function tableDevis(liste) {
-  return `<table class="liste">
-    <thead><tr><th>N°</th><th>Client</th><th class="cache-mobile">Objet</th><th class="cache-mobile">Date</th><th class="num">Montant</th><th>Statut</th></tr></thead>
-    <tbody>${[...liste].sort((a, b) => b.date.localeCompare(a.date) || b.numero.localeCompare(a.numero)).map((d) => `
-      <tr class="cliquable" data-devis="${d.id}">
-        <td><strong>${esc(d.numero)}</strong></td><td>${esc(nomClient(d.clientId))}</td>
-        <td class="cache-mobile">${esc(d.objet)}</td><td class="cache-mobile">${dateFr(d.date)}</td>
-        <td class="num">${euros(total(d))}</td><td>${pastilleDevis(d)}${d.factureId ? ` <span class="pastille">Facturé</span>` : ""}</td>
-      </tr>`).join("")}</tbody></table>`;
+/* ---------------- Export vers Indy ---------------- */
+// Indy importe les contacts depuis un fichier CSV séparé par des virgules
+function csvIndy(liste) {
+  const entetes = ["Type", "Société", "Prénom", "Nom", "E-mail", "Téléphone", "Adresse", "Code postal", "Ville", "Pays", "Notes"];
+  const cell = (x) => {
+    let s = String(x ?? "").replace(/\r?\n/g, " ").trim();
+    if (/^[=+\-@]/.test(s)) s = "'" + s; // évite qu'un tableur l'exécute comme formule
+    return `"${s.replace(/"/g, '""')}"`;
+  };
+  const lignes = liste.map((c) => [
+    c.type === "pro" ? "Professionnel" : "Particulier", c.societe, c.prenom, c.nom, c.email, c.tel,
+    c.adresse, c.cp, c.ville, "France", [c.vehicule && `Véhicule : ${c.vehicule}`, c.immat && `Immat : ${c.immat}`].filter(Boolean).join(" · "),
+  ]);
+  return [entetes, ...lignes].map((l) => l.map(cell).join(",")).join("\r\n") + "\r\n";
 }
-function tableFactures(liste) {
-  return `<table class="liste">
-    <thead><tr><th>N°</th><th>Client</th><th class="cache-mobile">Date</th><th class="cache-mobile">Échéance</th><th class="num">Montant</th><th>Paiement</th></tr></thead>
-    <tbody>${[...liste].sort((a, b) => b.numero.localeCompare(a.numero)).map((f) => `
-      <tr class="cliquable" data-facture="${f.id}">
-        <td><strong>${esc(f.numero)}</strong></td><td>${esc(nomClient(f.clientId))}</td>
-        <td class="cache-mobile">${dateFr(f.date)}</td><td class="cache-mobile">${dateFr(f.echeance)}</td>
-        <td class="num">${euros(total(f))}</td><td>${pastilleFacture(f)}</td>
-      </tr>`).join("")}</tbody></table>`;
-}
-
-VUES.devis = () => {
-  $("#vue").innerHTML = `
-    <div class="entete"><h1>Devis</h1><button class="btn" data-action="nouveau-devis">+ Nouveau devis</button></div>
-    ${db.devis.length ? tableDevis(db.devis) : `<div class="carte vide">Aucun devis pour l'instant.</div>`}`;
-};
-VUES.factures = () => {
-  $("#vue").innerHTML = `
-    <div class="entete"><h1>Factures</h1>
-      <div class="actions"><button class="btn secondaire" data-action="export-csv">Exporter (tableur)</button></div></div>
-    <p class="note">Une facture se crée depuis un devis accepté (bouton « Transformer en facture »).</p>
-    ${db.factures.length ? tableFactures(db.factures) : `<div class="carte vide">Aucune facture pour l'instant.</div>`}`;
-};
-
-/* ---------------- Éditeur commun devis / facture ---------------- */
-function editeur(genre, original) {
-  // On travaille sur une copie : rien n'est modifié tant qu'on n'a pas enregistré.
-  const doc = JSON.parse(JSON.stringify(original));
-  const estFacture = genre === "facture";
-  const r = db.reglages;
-  const verrou = estFacture && doc.payee;
-  const options = db.clients
-    .slice().sort((a, b) => a.nom.localeCompare(b.nom, "fr"))
-    .map((c) => `<option value="${c.id}" ${c.id === doc.clientId ? "selected" : ""}>${esc(c.nom)}</option>`).join("");
-
-  $("#vue").innerHTML = `
-    <div class="entete">
-      <h1>${estFacture ? "Facture" : "Devis"} ${esc(doc.numero)}</h1>
-      <div>${estFacture ? pastilleFacture(doc) : pastilleDevis(doc)}</div>
-    </div>
-    ${verrou ? `<div class="alerte">Facture payée : elle n'est plus modifiable. En cas d'erreur, il faut faire un avoir (pas encore dans la bêta).</div>` : ""}
-    ${!db.clients.length ? `<div class="alerte">Ajoutez d'abord un client.</div>` : ""}
-    <form id="form-doc" class="carte">
-      <fieldset ${verrou ? "disabled" : ""} style="border:0;padding:0;margin:0">
-      <div class="grille">
-        <label>Client *<select name="clientId" required><option value="">— Choisir —</option>${options}</select></label>
-        <label>Date<input type="date" name="date" value="${doc.date}" required></label>
-        ${estFacture
-          ? `<label>Échéance<input type="date" name="echeance" value="${doc.echeance}"></label>`
-          : `<label>Statut<select name="statut">${Object.entries(STATUTS_DEVIS).map(([k, v]) => `<option value="${k}" ${k === doc.statut ? "selected" : ""}>${v}</option>`).join("")}</select></label>`}
-        <label class="plein">Objet<input name="objet" value="${esc(doc.objet)}" placeholder="ex. Aménagement partiel : isolation + électricité"></label>
-      </div>
-
-      <h2>Lignes</h2>
-      <table class="lignes">
-        <thead><tr><th class="c-type">Type</th><th>Désignation</th><th class="c-qte">Qté / h</th><th class="c-pu">Prix unit.</th><th class="c-total">Total</th><th class="c-sup"></th></tr></thead>
-        <tbody id="lignes"></tbody>
-      </table>
-      <div class="barre-actions" style="margin-top:.5rem">
-        <button type="button" class="btn secondaire petit" data-ajout="mo">+ Main d'œuvre</button>
-        <button type="button" class="btn secondaire petit" data-ajout="forfait">+ Forfait</button>
-        <button type="button" class="btn secondaire petit" data-ajout="info">+ Matériel fourni par le client</button>
-      </div>
-      <p class="note">« Matériel client » = pour information, non facturé (le client achète son matériel). Taux horaire actuel : ${euros(r.taux)} / h.</p>
-      <div class="totaux" id="totaux"></div>
-      <label class="plein" style="margin-top:1rem">Remarques (imprimées sur le document)<textarea name="remarques">${esc(doc.remarques)}</textarea></label>
-      </fieldset>
-
-      <div class="barre-actions">
-        ${verrou ? "" : `<button class="btn" type="submit">Enregistrer</button>`}
-        <button class="btn secondaire" type="button" data-action="imprimer">Imprimer / PDF</button>
-        ${!estFacture && !doc.factureId && doc.id ? `<button class="btn secondaire" type="button" data-action="vers-facture">Transformer en facture</button>` : ""}
-        ${!estFacture && doc.factureId ? `<button class="btn secondaire" type="button" data-ouvrir-facture="${doc.factureId}">Voir la facture</button>` : ""}
-        ${estFacture && !doc.payee && doc.id ? `<button class="btn secondaire" type="button" data-action="payer">Marquer comme payée</button>` : ""}
-        ${estFacture && doc.payee ? `<button class="btn secondaire" type="button" data-action="impayer">Annuler le paiement</button>` : ""}
-        <button class="btn secondaire" type="button" data-aller="${estFacture ? "factures" : "devis"}">Retour</button>
-        ${!estFacture && doc.id && !doc.factureId ? `<button class="btn danger" type="button" data-action="suppr-devis">Supprimer</button>` : ""}
-      </div>
-    </form>`;
-
-  const corps = $("#lignes");
-  const dessinerLignes = () => {
-    corps.innerHTML = doc.lignes.map((l, i) => `
-      <tr data-i="${i}">
-        <td class="c-type"><select data-champ="type">${Object.entries(TYPES).map(([k, v]) => `<option value="${k}" ${k === l.type ? "selected" : ""}>${v}</option>`).join("")}</select></td>
-        <td class="c-desc"><input data-champ="desc" value="${esc(l.desc)}" placeholder="Désignation"></td>
-        <td class="c-qte" data-l="${l.type === 'mo' ? 'Heures' : 'Quantité'}"><input data-champ="qte" inputmode="decimal" value="${esc(l.qte)}" ${l.type === "info" ? "placeholder='—'" : ""}></td>
-        <td class="c-pu" data-l="Prix unitaire (€)"><input data-champ="pu" inputmode="decimal" value="${l.type === "info" ? "" : esc(l.pu)}" ${l.type === "info" ? "disabled placeholder='—'" : ""}></td>
-        <td class="c-total">${l.type === "info" ? "<span class='note'>info</span>" : euros(totalLigne(l))}</td>
-        <td class="c-sup"><button type="button" class="btn danger petit" data-suppr="${i}" title="Supprimer la ligne">✕</button></td>
-      </tr>`).join("") || `<tr><td colspan="6" class="note">Aucune ligne. Ajoutez-en avec les boutons ci-dessous.</td></tr>`;
-    majTotaux();
-  };
-  const majTotaux = () => {
-    $("#totaux").innerHTML = `
-      <div>Main d'œuvre : ${heures(doc).toLocaleString("fr-FR")} h</div>
-      <div class="grand">Total à payer : ${euros(total(doc))}</div>
-      <div class="note">${esc(TARIFS.tvaMention)}</div>`;
-    corps.querySelectorAll("tr[data-i]").forEach((tr) => {
-      const l = doc.lignes[tr.dataset.i];
-      tr.querySelector(".c-total").innerHTML = l.type === "info" ? "<span class='note'>info</span>" : euros(totalLigne(l));
-    });
-  };
-  dessinerLignes();
-
-  corps.addEventListener("input", (e) => {
-    const tr = e.target.closest("tr[data-i]");
-    if (!tr || !e.target.dataset.champ) return;
-    const l = doc.lignes[tr.dataset.i];
-    l[e.target.dataset.champ] = e.target.value;
-    if (e.target.dataset.champ === "type") {
-      if (l.type === "mo") { l.pu = r.taux; if (!l.desc) l.desc = "Main d'œuvre"; }
-      if (l.type === "info") l.pu = 0;
-      dessinerLignes();
-    } else majTotaux();
-  });
-  corps.addEventListener("click", (e) => {
-    const b = e.target.closest("[data-suppr]");
-    if (!b) return;
-    doc.lignes.splice(Number(b.dataset.suppr), 1);
-    dessinerLignes();
-  });
-  $("#form-doc").addEventListener("click", (e) => {
-    const b = e.target.closest("[data-ajout]");
-    if (!b) return;
-    const t = b.dataset.ajout;
-    doc.lignes.push({
-      type: t,
-      desc: t === "mo" ? "Main d'œuvre" : "",
-      qte: t === "info" ? "" : 1,
-      pu: t === "mo" ? r.taux : t === "info" ? 0 : "",
-    });
-    dessinerLignes();
-    corps.querySelector(`tr[data-i="${doc.lignes.length - 1}"] [data-champ="desc"]`)?.focus();
-  });
-
-  const lireFormulaire = () => {
-    const d = Object.fromEntries(new FormData($("#form-doc")));
-    doc.clientId = d.clientId;
-    doc.date = d.date;
-    doc.objet = d.objet;
-    doc.remarques = d.remarques;
-    if (estFacture) doc.echeance = d.echeance;
-    else doc.statut = d.statut;
-  };
-  const enregistrer = () => {
-    lireFormulaire();
-    if (!doc.clientId) { alert("Choisissez un client."); return false; }
-    doc.lignes = doc.lignes.filter((l) => String(l.desc).trim() || nb(l.qte) || nb(l.pu));
-    if (!doc.id) {
-      doc.id = id();
-      if (estFacture) { doc.numero = numero("F", r.prochaineFacture, doc.date); r.prochaineFacture++; }
-      else { doc.numero = numero("D", r.prochainDevis, doc.date); r.prochainDevis++; }
-    }
-    valider();
-    return true;
-  };
-  const valider = () => {
-    const liste = estFacture ? db.factures : db.devis;
-    const i = liste.findIndex((x) => x.id === doc.id);
-    if (i >= 0) liste[i] = doc; else liste.push(doc);
-    sauver();
-  };
-
-  $("#form-doc").addEventListener("submit", (e) => {
-    e.preventDefault();
-    if (enregistrer()) aller(estFacture ? "factures-fiche" : "devis-fiche", doc.id);
-  });
-  $("#form-doc").addEventListener("click", (e) => {
-    const a = e.target.closest("[data-action]")?.dataset.action;
-    if (!a) return;
-    if (a === "imprimer") {
-      if (!verrou && !enregistrer()) return;
-      imprimer(genre, doc);
-      aller(estFacture ? "factures-fiche" : "devis-fiche", doc.id);
-    }
-    if (a === "vers-facture") {
-      if (!enregistrer()) return;
-      if (doc.statut !== "accepte" && !confirm("Ce devis n'est pas marqué « Accepté ». Créer la facture quand même ?")) return;
-      const f = {
-        id: id(),
-        numero: numero("F", r.prochaineFacture, aujourdhui()),
-        devisId: doc.id,
-        clientId: doc.clientId,
-        date: aujourdhui(),
-        echeance: plusJours(aujourdhui(), r.delai),
-        objet: doc.objet,
-        lignes: JSON.parse(JSON.stringify(doc.lignes)),
-        remarques: `Suite au devis ${doc.numero} du ${dateFr(doc.date)}.`,
-        payee: false,
-      };
-      r.prochaineFacture++;
-      doc.statut = "accepte";
-      doc.factureId = f.id;
-      db.factures.push(f);
-      valider();
-      aller("factures-fiche", f.id);
-    }
-    if (a === "payer") { if (enregistrer()) ouvrirPaiement(doc.id); }
-    if (a === "impayer" && confirm("Annuler l'enregistrement du paiement ?")) {
-      doc.payee = false; delete doc.datePaiement; delete doc.mode;
-      valider(); aller("factures-fiche", doc.id);
-    }
-    if (a === "suppr-devis" && confirm(`Supprimer le devis ${doc.numero} ?`)) {
-      db.devis = db.devis.filter((x) => x.id !== doc.id);
-      sauver(); aller("devis");
-    }
-  });
-}
-
-VUES["devis-fiche"] = (did, pourClient) => {
-  let d = did && db.devis.find((x) => x.id === did);
-  if (did && !d) return aller("devis");
-  if (!d) {
-    d = {
-      id: "", numero: "(nouveau)", clientId: pourClient || "", date: aujourdhui(), objet: "",
-      statut: "brouillon", remarques: "",
-      lignes: [{ type: "mo", desc: "Main d'œuvre", qte: 1, pu: db.reglages.taux }],
-    };
-  }
-  editeur("devis", d);
-};
-VUES["factures-fiche"] = (fid) => {
-  const f = db.factures.find((x) => x.id === fid);
-  if (!f) return aller("factures");
-  editeur("facture", f);
-};
-
-function ouvrirPaiement(fid) {
-  const f = db.factures.find((x) => x.id === fid);
+function ouvrirExportIndy() {
   const dlg = $("#fenetre");
+  const nouveaux = db.clients.filter((c) => !c.exporteIndy);
   $("#fenetre-form").innerHTML = `
-    <h2 style="margin-top:0">Paiement de ${esc(f.numero)} — ${euros(total(f))}</h2>
+    <h2 style="margin-top:0">Exporter les clients pour Indy</h2>
     <div class="grille">
-      <label>Date du paiement<input type="date" name="date" value="${aujourdhui()}" required></label>
-      <label>Mode<select name="mode"><option>Virement</option><option>Espèces</option><option>Chèque</option><option>Carte</option><option>Autre</option></select></label>
+      <label class="case plein"><input type="radio" name="quoi" value="nouveaux" ${nouveaux.length ? "checked" : "disabled"}> Seulement ceux pas encore dans Indy (${nouveaux.length})</label>
+      <label class="case plein"><input type="radio" name="quoi" value="tous" ${nouveaux.length ? "" : "checked"}> Tous les clients (${db.clients.length})</label>
     </div>
-    <div class="barre-actions"><button class="btn" value="ok">Valider</button><button class="btn secondaire" value="annuler" formnovalidate>Annuler</button></div>`;
-  dlg.onclose = () => {
-    if (dlg.returnValue !== "ok") return;
-    const d = Object.fromEntries(new FormData($("#fenetre-form")));
-    f.payee = true; f.datePaiement = d.date; f.mode = d.mode;
-    sauver(); aller("factures-fiche", f.id);
+    <ol class="etapes">
+      <li>Téléchargez le fichier ci-dessous.</li>
+      <li>Dans Indy, ouvrez la liste des clients (contacts) et choisissez <strong>Importer</strong>.</li>
+      <li>Choisissez le fichier, vérifiez que chaque colonne correspond au bon champ, puis validez.</li>
+    </ol>
+    <p class="note">Les clients exportés sont marqués « dans Indy » pour ne pas les importer deux fois.</p>
+    <div class="barre-actions"><button class="btn" type="submit">Télécharger le fichier</button><button class="btn secondaire" type="button" data-fermer>Fermer</button></div>`;
+  const f = $("#fenetre-form");
+  f.querySelector("[data-fermer]").addEventListener("click", () => dlg.close());
+  f.onsubmit = (e) => {
+    e.preventDefault();
+    const liste = f.quoi.value === "tous" ? db.clients : nouveaux;
+    if (!liste.length) return dlg.close();
+    telecharger(`clients-indy-${aujourdhui()}.csv`, csvIndy(liste), "text/csv");
+    liste.forEach((c) => (c.exporteIndy = c.exporteIndy || aujourdhui()));
+    sauver();
+    dlg.close();
+    aller("clients");
   };
-  dlg.returnValue = "";
   dlg.showModal();
 }
-
-/* ---------------- Impression / PDF ---------------- */
-function imprimer(genre, doc) {
-  const r = db.reglages;
-  const c = client(doc.clientId) || {};
-  const estFacture = genre === "facture";
-  const lignes = doc.lignes.map((l) => l.type === "info"
-    ? `<tr class="info"><td>${esc(l.desc)}${l.qte ? ` (× ${esc(l.qte)})` : ""}</td><td colspan="3">Fourni par le client</td></tr>`
-    : `<tr><td>${esc(l.desc)}</td><td class="num">${nb(l.qte).toLocaleString("fr-FR")}${l.type === "mo" ? " h" : ""}</td><td class="num">${euros(l.pu)}</td><td class="num">${euros(totalLigne(l))}</td></tr>`
-  ).join("");
-
-  $("#impression").innerHTML = `
-  <div class="doc">
-    <div class="haut">
-      <div class="emetteur">
-        <strong>${esc(r.nom)}</strong><br>
-        ${r.responsable ? esc(r.responsable) + " — Entrepreneur individuel (EI)<br>" : ""}
-        ${r.adresse ? esc(r.adresse) + "<br>" : ""}${esc(r.cpVille)}<br>
-        ${esc(r.tel)} · ${esc(r.email)}<br>
-        ${r.siret ? "SIRET : " + esc(r.siret) : "<em>SIRET : à compléter</em>"}
-      </div>
-      <div class="titre-doc">
-        <h1>${estFacture ? "FACTURE" : "DEVIS"}</h1>
-        N° <strong>${esc(doc.numero)}</strong><br>
-        Date : ${dateFr(doc.date)}<br>
-        ${estFacture ? `Échéance : ${dateFr(doc.echeance)}` : `Valable jusqu'au ${dateFr(plusJours(doc.date, r.validite))}`}
-      </div>
-    </div>
-    <div class="destinataire">
-      <strong>${esc(c.nom || "")}</strong><br>
-      ${esc(c.adresse || "")}<br>
-      ${c.vehicule ? "Véhicule : " + esc(c.vehicule) : ""}${c.immat ? " — " + esc(c.immat) : ""}
-    </div>
-    ${doc.objet ? `<p><strong>Objet :</strong> ${esc(doc.objet)}</p>` : ""}
-    <table>
-      <thead><tr><th>Désignation</th><th class="num">Qté</th><th class="num">Prix unit.</th><th class="num">Total</th></tr></thead>
-      <tbody>${lignes}</tbody>
-    </table>
-    <table class="totaux-doc">
-      <tr><td>Main d'œuvre</td><td class="num">${heures(doc).toLocaleString("fr-FR")} h × ${euros(r.taux)}</td></tr>
-      <tr class="grand"><td>${estFacture ? "Net à payer" : "Total"}</td><td class="num">${euros(total(doc))}</td></tr>
-      <tr><td colspan="2" class="note">${esc(TARIFS.tvaMention)}</td></tr>
-    </table>
-    ${doc.remarques ? `<p>${esc(doc.remarques).replace(/\n/g, "<br>")}</p>` : ""}
-    ${estFacture && doc.payee ? `<p><strong>Acquittée le ${dateFr(doc.datePaiement)} (${esc(doc.mode)}).</strong></p>` : ""}
-    <div class="mentions">
-      ${estFacture
-        ? `Paiement à réception, au plus tard le ${dateFr(doc.echeance)}${r.iban ? ` — par virement sur l'IBAN ${esc(r.iban)}` : ""}.
-           Pas d'escompte pour paiement anticipé. En cas de retard, pénalités au taux de 3 fois le taux d'intérêt légal.
-           Pour les clients professionnels : indemnité forfaitaire pour frais de recouvrement de 40 €.`
-        : `Devis gratuit, valable ${esc(r.validite)} jours. Le matériel est acheté directement par le client ; seule la main d'œuvre est facturée par l'atelier.
-           Les frais d'organismes éventuels (contrôle VASP, DREAL, pesée, certificat gaz) sont payés directement par le client.`}
-    </div>
-    ${estFacture ? "" : `
-    <div class="signature">
-      <div>Date et signature de l'atelier</div>
-      <div>Bon pour accord — date, signature et mention « Devis reçu avant l'exécution des travaux »</div>
-    </div>`}
-  </div>`;
-  const ancienTitre = document.title;
-  document.title = `${doc.numero} ${c.nom || ""}`.trim(); // nom de fichier proposé pour le PDF
-  window.print();
-  document.title = ancienTitre;
+function texteIndy(c) {
+  return [
+    c.societe && `Société : ${c.societe}`, `Prénom : ${c.prenom}`, `Nom : ${c.nom}`, `E-mail : ${c.email}`, `Téléphone : ${c.tel}`,
+    `Adresse : ${c.adresse}`, `Code postal : ${c.cp}`, `Ville : ${c.ville}`,
+  ].filter(Boolean).join("\n");
 }
-
-/* ---------------- Réglages & sauvegarde ---------------- */
-VUES.reglages = () => {
-  const r = db.reglages;
-  if (!r.cleDemandes) { r.cleDemandes = cleAleatoire(); sauver(); }
-  const champ = (k, label, extra = "") => `<label>${label}<input name="${k}" value="${esc(r[k])}" ${extra}></label>`;
-  $("#vue").innerHTML = `
-    <h1>Réglages</h1>
-    <form id="form-reglages" class="carte">
-      <h2 style="margin-top:0">Votre entreprise (apparaît sur les devis et factures)</h2>
-      <div class="grille">
-        ${champ("nom", "Nom commercial")}
-        ${champ("responsable", "Prénom et nom du responsable", "placeholder='obligatoire sur les factures'")}
-        ${champ("siret", "SIRET", "placeholder='14 chiffres'")}
-        ${champ("adresse", "Adresse")}
-        ${champ("cpVille", "Code postal et ville")}
-        ${champ("tel", "Téléphone")}
-        ${champ("email", "E-mail")}
-        ${champ("iban", "IBAN (pour les virements)")}
-      </div>
-      <h2>Règles</h2>
-      <div class="grille">
-        ${champ("taux", "Taux horaire (€)", "type='number' min='0' step='1'")}
-        ${champ("validite", "Validité des devis (jours)", "type='number' min='1'")}
-        ${champ("delai", "Délai de paiement (jours)", "type='number' min='0'")}
-      </div>
-      <p class="note">Le taux horaire du site public est réglé dans <code>site/js/tarifs.js</code> (${euros(TARIFS.taux)} / h). Changer ce taux-ci ne modifie que les nouveaux devis.</p>
-      <div class="barre-actions"><button class="btn" type="submit">Enregistrer</button></div>
-    </form>
-
-    <h2 id="connexion-site">Recevoir les demandes du site</h2>
-    <div class="carte">
-      ${r.urlDemandes
-        ? `<p><strong>Connecté.</strong> Les demandes du site arrivent dans l'onglet « Demandes ». Dernière vérification : ${dateHeure(r.derniereSynchro)}.</p>`
-        : `<p>Gratuit : un petit script Google range chaque demande du site dans un tableau Google Sheets, et l'appli vient les chercher. Les e-mails continuent d'arriver comme avant.</p>`}
-      <details ${r.urlDemandes ? "" : "open"}>
-        <summary>Mise en place (une seule fois, 5 minutes)</summary>
-        <ol class="etapes">
-          <li>Sur <strong>sheets.google.com</strong> (connecté au compte Google de l'atelier), créez une feuille vide nommée « Demandes Aménag'Van ».</li>
-          <li>Menu <strong>Extensions → Apps Script</strong>. Effacez tout le code présent.</li>
-          <li>Collez ce code, puis cliquez sur l'icône 💾 Enregistrer :
-            <textarea id="code-script" readonly rows="6" spellcheck="false">${esc(window.codeScriptGoogle ? window.codeScriptGoogle(r.cleDemandes) : "")}</textarea>
-            <button type="button" class="btn secondaire petit" data-action="copier-script">Copier le code</button>
-          </li>
-          <li><strong>Déployer → Nouveau déploiement</strong> → type « Application Web ». « Exécuter en tant que » : <em>Moi</em> ; « Qui a accès » : <em>Tout le monde</em>. Cliquez sur Déployer et autorisez l'accès (Google affiche un avertissement : « Paramètres avancés » → « Accéder au projet »).</li>
-          <li>Copiez l'<strong>URL de l'application Web</strong> (elle finit par <code>/exec</code>) et collez-la ci-dessous.</li>
-          <li>Envoyez aussi cette URL à Claude : il l'ajoute au site (fichier <code>site/js/config.js</code>).</li>
-        </ol>
-      </details>
-      <form id="form-connexion" class="grille" style="margin-top:1rem">
-        <label class="plein">URL du script Google<input name="urlDemandes" type="url" inputmode="url" placeholder="https://script.google.com/macros/s/…/exec" value="${esc(r.urlDemandes)}"></label>
-        <div class="barre-actions plein" style="margin-top:0">
-          <button class="btn" type="submit">Enregistrer et tester</button>
-          ${r.urlDemandes ? `<button class="btn danger" type="button" data-action="deconnecter-site">Déconnecter</button>` : ""}
-        </div>
-        <p class="note plein" id="resultat-connexion" role="status"></p>
-      </form>
-      <p class="note">Sur un 2e appareil : restaurez une sauvegarde de celui-ci, l'adresse et la clé secrète sont incluses.</p>
-    </div>
-
-    <h2>Installer sur téléphone ou tablette</h2>
-    <div class="carte">
-      ${estInstallee() ? `<p><strong>L'appli est installée sur cet appareil.</strong> Elle marche même sans réseau.</p>` : `
-      <p>Ouvrez <strong>amenagvan.github.io/gestion</strong> sur l'appareil, puis :</p>
-      <ul>
-        <li><strong>iPhone / iPad (Safari)</strong> : bouton Partager <span aria-hidden="true">⎋</span> → « Sur l'écran d'accueil ».</li>
-        <li><strong>Android (Chrome)</strong> : menu ⋮ → « Installer l'application » (ou « Ajouter à l'écran d'accueil »).</li>
-        <li><strong>Ordinateur (Chrome / Edge)</strong> : icône d'installation à droite de la barre d'adresse.</li>
-      </ul>
-      ${invitationInstall ? `<button class="btn" data-action="installer">Installer maintenant</button>` : ""}`}
-      <p class="note">Une fois installée, l'appli s'ouvre en plein écran depuis son icône et fonctionne hors ligne (dans l'atelier, au garage…).</p>
-    </div>
-
-    <h2>Sauvegarde</h2>
-    <div class="carte">
-      <p>Les données sont gardées <strong>sur cet appareil uniquement</strong> (rien n'est envoyé sur Internet). Chaque appareil a donc ses propres données. Exportez une sauvegarde régulièrement (dans OneDrive ou Google Drive par exemple).</p>
-      <p class="note"><strong>Passer de l'ordi à la tablette</strong> : « Exporter une sauvegarde » sur l'ancien appareil, envoyez-vous le fichier (e-mail, Drive…), puis « Restaurer une sauvegarde » sur le nouveau.</p>
-      <p class="note">Dernière sauvegarde exportée : ${db.reglages.derniereSauvegarde ? dateFr(db.reglages.derniereSauvegarde) : "jamais"}.</p>
-      <div class="barre-actions">
-        <button class="btn" data-action="export">Exporter une sauvegarde</button>
-        <label class="btn secondaire" style="flex-direction:row;color:var(--vert)">Restaurer une sauvegarde<input type="file" accept=".json,application/json" id="import" hidden></label>
-        <button class="btn secondaire" data-action="demo">Charger des données d'essai</button>
-        <button class="btn danger" data-action="tout-effacer">Tout effacer</button>
-      </div>
-    </div>`;
-  $("#form-reglages").addEventListener("submit", (e) => {
-    e.preventDefault();
-    const d = Object.fromEntries(new FormData(e.target));
-    ["taux", "validite", "delai"].forEach((k) => (d[k] = nb(d[k])));
-    Object.assign(r, d);
-    sauver();
-    alert("Réglages enregistrés.");
-  });
-  $("#form-connexion").addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const sortie = $("#resultat-connexion");
-    const url = new FormData(e.target).get("urlDemandes").trim();
-    if (url && !/^https:\/\/script\.google(usercontent)?\.com\/.+/.test(url)) {
-      sortie.textContent = "Cette adresse ne ressemble pas à une URL de script Google (https://script.google.com/macros/s/…/exec).";
-      return;
-    }
-    r.urlDemandes = url;
-    sauver();
-    if (!url) { sortie.textContent = "Adresse effacée."; return; }
-    sortie.textContent = "Test en cours…";
-    const n = await synchroDemandes();
-    sortie.textContent = erreurSynchro ? `Échec : ${erreurSynchro}` : `Connexion réussie ✓ ${n ? `${n} demande(s) récupérée(s).` : "Aucune demande pour l'instant."}`;
-  });
-  $("#import").addEventListener("change", async (e) => {
-    const fichier = e.target.files[0];
-    if (!fichier) return;
-    try {
-      const d = JSON.parse(await fichier.text());
-      if (!d.reglages || !Array.isArray(d.clients)) throw new Error("format");
-      if (!confirm("Remplacer toutes les données actuelles par cette sauvegarde ?")) return;
-      localStorage.setItem(CLE, JSON.stringify(d));
-      db = charger();
-      aller("accueil");
-    } catch {
-      alert("Ce fichier n'est pas une sauvegarde valide.");
-    }
-  });
-};
-
-async function telecharger(nom, contenu, type) {
-  // Sur téléphone/tablette : menu « Partager » (Drive, OneDrive, e-mail, AirDrop…)
-  const fichier = new File([contenu], nom, { type });
-  if (window.matchMedia("(pointer: coarse)").matches && navigator.canShare?.({ files: [fichier] })) {
-    try { await navigator.share({ files: [fichier], title: nom }); return; }
-    catch (e) { if (e.name === "AbortError") return; }
-  }
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(new Blob([contenu], { type }));
-  a.download = nom;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-}
-
-function chargerDemo() {
-  const t = db.reglages.taux;
-  const c1 = { id: id(), nom: "Julie Martin", tel: "06 11 22 33 44", email: "julie@example.com", adresse: "3 rue des Lilas, 79700 Mauléon", vehicule: "Renault Trafic L2H1 2018", immat: "AB-123-CD", notes: "Veut partir en juillet." };
-  const c2 = { id: id(), nom: "Karim Benali", tel: "06 55 66 77 88", email: "karim@example.com", adresse: "12 av. de Nantes, 49300 Cholet", vehicule: "Fiat Ducato L3H2", immat: "EF-456-GH", notes: "" };
-  db.clients.push(c1, c2);
-  const r = db.reglages;
-  const mk = (cl, objet, statut, lignes, date) => {
-    const d = { id: id(), numero: numero("D", r.prochainDevis++, date), clientId: cl.id, date, objet, statut, remarques: "", lignes };
-    db.devis.push(d); return d;
+function copier(texte, bouton, libelle) {
+  const fini = () => { bouton.textContent = "Copié ✓"; setTimeout(() => (bouton.textContent = libelle), 2500); };
+  const repli = () => {
+    const t = document.createElement("textarea");
+    t.value = texte; document.body.appendChild(t); t.select(); document.execCommand("copy"); t.remove(); fini();
   };
-  const d1 = mk(c1, "Isolation + électricité 12 V", "accepte", [
-    { type: "mo", desc: "Isolation, plancher, habillage", qte: 40, pu: t },
-    { type: "mo", desc: "Installation électrique 12 V", qte: 24, pu: t },
-    { type: "info", desc: "Laine de mouton + contreplaqué peuplier", qte: "", pu: 0 },
-  ], plusJours(aujourdhui(), -40));
-  mk(c2, "Chauffage gaz", "envoye", [
-    { type: "mo", desc: "Pose chauffage gaz + ligne gaz", qte: 22, pu: t },
-    { type: "forfait", desc: "Déplacement", qte: 1, pu: 30 },
-  ], plusJours(aujourdhui(), -5));
-  const f = {
-    id: id(), numero: numero("F", r.prochaineFacture++, plusJours(aujourdhui(), -35)), devisId: d1.id, clientId: c1.id,
-    date: plusJours(aujourdhui(), -35), echeance: plusJours(aujourdhui(), -5), objet: d1.objet,
-    lignes: JSON.parse(JSON.stringify(d1.lignes)), remarques: `Suite au devis ${d1.numero}.`, payee: false,
-  };
-  d1.factureId = f.id;
-  db.factures.push(f);
-  sauver();
+  if (navigator.clipboard?.writeText) navigator.clipboard.writeText(texte).then(fini, repli);
+  else repli();
 }
-
-/* ---------------- Clics globaux ---------------- */
-document.addEventListener("click", (e) => {
-  const lien = e.target.closest("[data-aller]");
-  if (lien) { e.preventDefault(); return aller(lien.dataset.aller); }
-  const ligne = e.target.closest("[data-client],[data-devis],[data-facture],[data-ouvrir-facture]");
-  if (ligne) {
-    if (ligne.dataset.client) return aller("clients-fiche", ligne.dataset.client);
-    if (ligne.dataset.devis) return aller("devis-fiche", ligne.dataset.devis);
-    return aller("factures-fiche", ligne.dataset.facture || ligne.dataset.ouvrirFacture);
-  }
-  const b = e.target.closest("[data-action]");
-  if (!b || b.closest("#form-doc")) return;
-  const a = b.dataset.action;
-  if (a === "nouveau-client") aller("clients-fiche");
-  if (a === "nouveau-devis") aller("devis-fiche", null, b.dataset.pour);
-  if (a === "suppr-client") {
-    const cid = b.dataset.id;
-    if (db.factures.some((f) => f.clientId === cid)) return alert("Ce client a des factures : on doit les garder 10 ans, il ne peut pas être supprimé.");
-    if (!confirm("Supprimer ce client et ses devis ?")) return;
-    db.clients = db.clients.filter((c) => c.id !== cid);
-    db.devis = db.devis.filter((d) => d.clientId !== cid);
-    sauver(); aller("clients");
-  }
-  if (a === "installer") installer();
-  if (a === "copier-script") {
-    const zone = $("#code-script");
-    const fini = () => { b.textContent = "Code copié ✓"; setTimeout(() => (b.textContent = "Copier le code"), 2500); };
-    (navigator.clipboard?.writeText(zone.value) || Promise.reject()).then(fini, () => { zone.select(); document.execCommand("copy"); fini(); });
-  }
-  if (a === "deconnecter-site" && confirm("Ne plus recevoir les demandes du site dans cette appli ?")) {
-    db.reglages.urlDemandes = "";
-    sauver();
-    aller("reglages");
-  }
-  if (a === "export") {
-    db.reglages.derniereSauvegarde = aujourdhui();
-    sauver();
-    if (document.querySelector("#form-reglages")) setTimeout(() => aller("reglages"), 300);
-  }
-  if (a === "export") telecharger(`sauvegarde-gestion-${aujourdhui()}.json`, JSON.stringify(db, null, 2), "application/json");
-  if (a === "export-csv") {
-    const lignes = [["Numéro", "Date", "Client", "Objet", "Montant", "Payée", "Date paiement", "Mode"]].concat(
-      db.factures.map((f) => [f.numero, f.date, nomClient(f.clientId), f.objet, total(f).toFixed(2).replace(".", ","), f.payee ? "oui" : "non", f.datePaiement || "", f.mode || ""])
-    );
-    const csv = "﻿" + lignes.map((l) => l.map((v) => `"${String(v ?? "").replace(/"/g, '""')}"`).join(";")).join("\r\n");
-    telecharger(`factures-${aujourdhui()}.csv`, csv, "text/csv");
-  }
-  if (a === "demo") { chargerDemo(); aller("accueil"); }
-  if (a === "tout-effacer" && confirm("Effacer TOUTES les données ? Exportez une sauvegarde avant.") && confirm("Vraiment tout effacer ?")) {
-    localStorage.removeItem(CLE); db = base(); aller("accueil");
-  }
-});
 
 /* ---------------- Demandes reçues depuis le site ---------------- */
 // Lecture d'une valeur de la demande (ignore les champs vides ou « — »)
@@ -791,8 +468,8 @@ const infoDemande = (dem) => ({
   message: champ(dem, "Message", "Message du client"),
   ref: champ(dem, "Référence"),
   prestations: champ(dem, "Prestations"),
+  budget: champ(dem, "Budget global"),
 });
-const chiffres = (t) => String(t || "").replace(/\D/g, "");
 function clientDeDemande(dem) {
   if (dem.clientId && client(dem.clientId)) return client(dem.clientId);
   const i = infoDemande(dem);
@@ -809,7 +486,6 @@ function majPastilleMenu() {
   b.textContent = n;
   b.hidden = !n;
 }
-const dateHeure = (iso) => (iso ? new Date(iso).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" }) : "—");
 
 let synchroEnCours = null;
 let erreurSynchro = "";
@@ -890,9 +566,8 @@ VUES["demandes-fiche"] = (did) => {
   if (!dem) return aller("demandes");
   const i = infoDemande(dem);
   const cli = clientDeDemande(dem);
-  const devis = dem.devisId && db.devis.find((x) => x.id === dem.devisId);
   const lignes = Object.entries(dem.champs || {}).filter(([k]) => !k.startsWith("_"));
-  const telLien = chiffres(i.tel).replace(/^33/, "+33");
+  const tel = lienTel(i.tel);
   $("#vue").innerHTML = `
     <div class="entete">
       <h1>${esc(i.nom)}</h1>
@@ -900,17 +575,17 @@ VUES["demandes-fiche"] = (did) => {
     </div>
     <p class="note">${esc(i.type)} · reçue le ${dateHeure(dem.date)}</p>
     <div class="barre-actions" style="margin:0 0 1rem">
-      ${telLien ? `<a class="btn secondaire" href="tel:${esc(telLien)}">Appeler ${esc(i.tel)}</a>` : ""}
+      ${tel ? `<a class="btn secondaire" href="tel:${esc(tel)}">Appeler ${esc(i.tel)}</a>` : ""}
       ${i.email ? `<a class="btn secondaire" href="mailto:${esc(i.email)}?subject=${encodeURIComponent("Votre demande — Aménag'Van")}">Écrire un e-mail</a>` : ""}
     </div>
     <div class="carte">
       <dl class="details">${lignes.map(([k, v]) => `<dt>${esc(k === "email" ? "E-mail" : k)}</dt><dd>${esc(v)}</dd>`).join("")}</dl>
     </div>
     <div class="barre-actions">
-      ${cli ? `<button class="btn secondaire" data-client="${cli.id}">Fiche client : ${esc(cli.nom)}</button>`
+      ${cli ? `<button class="btn secondaire" data-client="${cli.id}">Fiche client : ${esc(nomComplet(cli))}</button>`
             : `<button class="btn secondaire" data-action="demande-client" data-id="${dem.id}">Créer le client</button>`}
-      ${devis ? `<button class="btn secondaire" data-devis="${devis.id}">Voir le devis ${esc(devis.numero)}</button>`
-              : `<button class="btn" data-action="demande-devis" data-id="${dem.id}">Préparer un devis</button>`}
+      <button class="btn" data-action="demande-rdv" data-id="${dem.id}">Planifier un rendez-vous</button>
+      <a class="btn secondaire" href="${URL_INDY}" target="_blank" rel="noopener">Faire le devis dans Indy</a>
       ${dem.statut === "nouvelle"
         ? `<button class="btn secondaire" data-action="demande-traitee" data-id="${dem.id}">Marquer traitée</button>`
         : `<button class="btn secondaire" data-action="demande-nouvelle" data-id="${dem.id}">Remettre en « nouvelle »</button>`}
@@ -925,45 +600,203 @@ function creerClientDepuisDemande(dem) {
   const existant = clientDeDemande(dem);
   if (existant) { dem.clientId = existant.id; return existant; }
   const i = infoDemande(dem);
-  const notes = [i.type, i.prestations && `Prestations : ${i.prestations}`, i.message, i.ref && `Réf. site : ${i.ref}`].filter(Boolean).join("\n");
-  const c = { id: id(), nom: i.nom, tel: i.tel, email: i.email, adresse: "", vehicule: i.vehicule, immat: "", notes };
+  const mots = i.nom === "Sans nom" ? [] : i.nom.split(/\s+/);
+  const notes = [i.type, i.prestations && `Prestations : ${i.prestations}`, i.budget && `Budget estimé : ${i.budget}`, i.message, i.ref && `Réf. site : ${i.ref}`].filter(Boolean).join("\n");
+  const c = {
+    ...CLIENT_VIDE, id: id(),
+    prenom: mots.length > 1 ? mots[0] : "", nom: mots.length > 1 ? mots.slice(1).join(" ") : mots[0] || "Sans nom",
+    tel: i.tel, email: i.email, vehicule: i.vehicule, notes,
+  };
   db.clients.push(c);
   dem.clientId = c.id;
   return c;
 }
 
-// Prépare un devis brouillon à partir de la demande (estimation du configurateur si présente)
-function devisDepuisDemande(dem) {
-  const c = creerClientDepuisDemande(dem);
-  const i = infoDemande(dem);
+/* ---------------- Réglages & sauvegarde ---------------- */
+VUES.reglages = () => {
   const r = db.reglages;
-  const lignes = [];
-  const h = champ(dem, "Main d'œuvre estimée").match(/\(([\d\s.,]+?)\s*h\b/);
-  lignes.push({ type: "mo", desc: "Main d'œuvre", qte: h ? nb(h[1].replace(/\s/g, "")) : 1, pu: r.taux });
-  const mat = champ(dem, "Matériel estimé");
-  if (mat) lignes.push({ type: "info", desc: `Matériel acheté par le client (estimation : ${mat})`, qte: "", pu: 0 });
-  const date = aujourdhui();
-  const d = {
-    id: id(), numero: numero("D", r.prochainDevis, date), clientId: c.id, date,
-    objet: i.prestations ? `${i.type} : ${i.prestations}` : i.type,
-    statut: "brouillon", remarques: i.ref ? `Suite à votre demande ${i.ref} sur le site.` : "", lignes,
-  };
-  r.prochainDevis++;
-  db.devis.push(d);
-  dem.devisId = d.id;
-  dem.statut = "traitee";
-  sauver();
-  return d;
+  if (!r.cleDemandes) { r.cleDemandes = cleAleatoire(); sauver(); }
+  const champR = (k, label, extra = "") => `<label>${label}<input name="${k}" value="${esc(r[k])}" ${extra}></label>`;
+  $("#vue").innerHTML = `
+    <h1>Réglages</h1>
+    <form id="form-reglages" class="carte" novalidate>
+      <h2 style="margin-top:0">Agenda</h2>
+      <div class="grille">
+        ${champR("compteAgenda", "Compte Google de l'agenda", "type='email' placeholder='ethan79pro@gmail.com'")}
+        ${champR("lieuAtelier", "Lieu par défaut des rendez-vous")}
+        <label class="plein">Lien de votre page de prise de rendez-vous Google (facultatif)<input name="urlRdv" type="url" value="${esc(r.urlRdv)}" placeholder="https://calendar.app.google/…"></label>
+      </div>
+      <p class="note">Les rendez-vous s'ajoutent dans le Google Agenda de ce compte (il doit être connecté dans le navigateur). La page de prise de rendez-vous se crée dans Google Agenda → Créer → Planning des rendez-vous ; Claude peut la mettre sur le site.</p>
+      <p class="note erreur" id="erreur-reglages" role="alert"></p>
+      <div class="barre-actions"><button class="btn" type="submit">Enregistrer</button></div>
+    </form>
+
+    <h2 id="connexion-site">Recevoir les demandes du site</h2>
+    <div class="carte">
+      ${r.urlDemandes
+        ? `<p><strong>Connecté.</strong> Les demandes du site arrivent dans l'onglet « Demandes ». Dernière vérification : ${dateHeure(r.derniereSynchro)}.</p>`
+        : `<p>Gratuit : un petit script Google range chaque demande du site dans un tableau Google Sheets, et l'appli vient les chercher. Les e-mails continuent d'arriver comme avant.</p>`}
+      <details ${r.urlDemandes ? "" : "open"}>
+        <summary>Mise en place (une seule fois, 5 minutes)</summary>
+        <ol class="etapes">
+          <li>Sur <strong>sheets.google.com</strong> (connecté au compte Google de l'atelier), créez une feuille vide nommée « Demandes Aménag'Van ».</li>
+          <li>Menu <strong>Extensions → Apps Script</strong>. Effacez tout le code présent.</li>
+          <li>Collez ce code, puis cliquez sur l'icône 💾 Enregistrer :
+            <textarea id="code-script" readonly rows="6" spellcheck="false">${esc(window.codeScriptGoogle ? window.codeScriptGoogle(r.cleDemandes) : "")}</textarea>
+            <button type="button" class="btn secondaire petit" data-action="copier-script">Copier le code</button>
+          </li>
+          <li><strong>Déployer → Nouveau déploiement</strong> → type « Application Web ». « Exécuter en tant que » : <em>Moi</em> ; « Qui a accès » : <em>Tout le monde</em>. Cliquez sur Déployer et autorisez l'accès (Google affiche un avertissement : « Paramètres avancés » → « Accéder au projet »).</li>
+          <li>Copiez l'<strong>URL de l'application Web</strong> (elle finit par <code>/exec</code>) et collez-la ci-dessous.</li>
+          <li>Envoyez aussi cette URL à Claude : il l'ajoute au site (fichier <code>site/js/config.js</code>).</li>
+        </ol>
+      </details>
+      <form id="form-connexion" class="grille" style="margin-top:1rem" novalidate>
+        <label class="plein">URL du script Google<input name="urlDemandes" type="url" inputmode="url" placeholder="https://script.google.com/macros/s/…/exec" value="${esc(r.urlDemandes)}"></label>
+        <div class="barre-actions plein" style="margin-top:0">
+          <button class="btn" type="submit">Enregistrer et tester</button>
+          ${r.urlDemandes ? `<button class="btn danger" type="button" data-action="deconnecter-site">Déconnecter</button>` : ""}
+        </div>
+        <p class="note plein" id="resultat-connexion" role="status"></p>
+      </form>
+      <p class="note">Sur un 2e appareil : restaurez une sauvegarde de celui-ci, l'adresse et la clé secrète sont incluses.</p>
+    </div>
+
+    <h2>Installer sur téléphone ou tablette</h2>
+    <div class="carte">
+      ${estInstallee() ? `<p><strong>L'appli est installée sur cet appareil.</strong> Elle marche même sans réseau.</p>` : `
+      <p>Ouvrez <strong>amenagvan.github.io/gestion</strong> sur l'appareil, puis :</p>
+      <ul>
+        <li><strong>iPhone / iPad (Safari)</strong> : bouton Partager → « Sur l'écran d'accueil ».</li>
+        <li><strong>Android (Chrome)</strong> : menu ⋮ → « Installer l'application » (ou « Ajouter à l'écran d'accueil »).</li>
+        <li><strong>Ordinateur (Chrome / Edge)</strong> : icône d'installation à droite de la barre d'adresse.</li>
+      </ul>
+      ${invitationInstall ? `<button class="btn" data-action="installer">Installer maintenant</button>` : ""}`}
+      <p class="note">Une fois installée, l'appli s'ouvre en plein écran depuis son icône et fonctionne hors ligne (dans l'atelier, au garage…).</p>
+    </div>
+
+    <h2>Sauvegarde</h2>
+    <div class="carte">
+      <p>Les données sont gardées <strong>sur cet appareil uniquement</strong>. Chaque appareil a donc ses propres données. Exportez une sauvegarde régulièrement (dans OneDrive ou Google Drive par exemple).</p>
+      <p class="note"><strong>Passer de l'ordi à la tablette</strong> : « Exporter une sauvegarde » sur l'ancien appareil, envoyez-vous le fichier (e-mail, Drive…), puis « Restaurer une sauvegarde » sur le nouveau.</p>
+      <p class="note">Dernière sauvegarde exportée : ${r.derniereSauvegarde ? dateFr(r.derniereSauvegarde) : "jamais"}.</p>
+      <div class="barre-actions">
+        <button class="btn" data-action="export">Exporter une sauvegarde</button>
+        <label class="btn secondaire" style="flex-direction:row;color:var(--vert)">Restaurer une sauvegarde<input type="file" accept=".json,application/json" id="import" hidden></label>
+        <button class="btn secondaire" data-action="demo">Charger des données d'essai</button>
+        <button class="btn danger" data-action="tout-effacer">Tout effacer</button>
+      </div>
+    </div>`;
+  $("#form-reglages").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const f = e.target;
+    const d = Object.fromEntries(new FormData(f));
+    Object.keys(d).forEach((k) => (d[k] = String(d[k]).trim()));
+    if (d.compteAgenda && !f.compteAgenda.checkValidity()) { $("#erreur-reglages").textContent = "Le compte Google doit être une adresse e-mail."; return; }
+    if (d.urlRdv && !/^https:\/\/\S+$/.test(d.urlRdv)) { $("#erreur-reglages").textContent = "Le lien de prise de rendez-vous doit commencer par https://"; return; }
+    Object.assign(r, d);
+    sauver();
+    $("#erreur-reglages").textContent = "";
+    const b = f.querySelector('button[type="submit"]');
+    b.textContent = "Enregistré ✓";
+    setTimeout(() => (b.textContent = "Enregistrer"), 2000);
+  });
+  $("#form-connexion").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const sortie = $("#resultat-connexion");
+    const url = new FormData(e.target).get("urlDemandes").trim();
+    if (url && !/^https:\/\/script\.google(usercontent)?\.com\/.+/.test(url)) {
+      sortie.textContent = "Cette adresse ne ressemble pas à une URL de script Google (https://script.google.com/macros/s/…/exec).";
+      return;
+    }
+    r.urlDemandes = url;
+    sauver();
+    if (!url) { sortie.textContent = "Adresse effacée."; return; }
+    sortie.textContent = "Test en cours…";
+    const n = await synchroDemandes();
+    sortie.textContent = erreurSynchro ? `Échec : ${erreurSynchro}` : `Connexion réussie ✓ ${n ? `${n} demande(s) récupérée(s).` : "Aucune demande pour l'instant."}`;
+  });
+  $("#import").addEventListener("change", async (e) => {
+    const fichier = e.target.files[0];
+    if (!fichier) return;
+    try {
+      const d = JSON.parse(await fichier.text());
+      if (!d.reglages || !Array.isArray(d.clients)) throw new Error("format");
+      if (!confirm("Remplacer toutes les données actuelles par cette sauvegarde ?")) return;
+      localStorage.setItem(CLE, JSON.stringify(d));
+      db = charger();
+      aller("accueil");
+    } catch {
+      alert("Ce fichier n'est pas une sauvegarde valide.");
+    }
+  });
+};
+
+async function telecharger(nom, contenu, type) {
+  // Sur téléphone/tablette : menu « Partager » (Drive, OneDrive, e-mail, AirDrop…)
+  const fichier = new File([contenu], nom, { type });
+  if (window.matchMedia("(pointer: coarse)").matches && navigator.canShare?.({ files: [fichier] })) {
+    try { await navigator.share({ files: [fichier], title: nom }); return; }
+    catch (e) { if (e.name === "AbortError") return; }
+  }
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([contenu], { type }));
+  a.download = nom;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
 
+function chargerDemo() {
+  const c1 = { ...CLIENT_VIDE, id: id(), prenom: "Julie", nom: "Martin", tel: "06 11 22 33 44", email: "julie@example.com", adresse: "3 rue des Lilas", cp: "79700", ville: "Mauléon", vehicule: "Renault Trafic L2H1 2018", immat: "AB-123-CD", notes: "Veut partir en juillet." };
+  const c2 = { ...CLIENT_VIDE, id: id(), type: "pro", societe: "Vans de l'Ouest", prenom: "Karim", nom: "Benali", tel: "06 55 66 77 88", email: "karim@example.com", adresse: "12 av. de Nantes", cp: "49300", ville: "Cholet", vehicule: "Fiat Ducato L3H2", immat: "EF-456-GH", exporteIndy: plusJours(aujourdhui(), -3) };
+  db.clients.push(c1, c2);
+  const j1 = plusJours(aujourdhui(), 2), j2 = plusJours(aujourdhui(), 9);
+  db.rdv.push(
+    { id: id(), clientId: c1.id, type: "diagnostic", journee: false, debut: `${j1}T10:00`, fin: `${j1}T11:00`, titre: `Diagnostic du van — Julie Martin (${c1.vehicule})`, lieu: db.reglages.lieuAtelier, notes: "" },
+    { id: id(), clientId: c2.id, type: "chantier", journee: true, debut: j2, fin: plusJours(j2, 4), titre: "Chantier — Karim Benali (Fiat Ducato L3H2)", lieu: db.reglages.lieuAtelier, notes: "Chauffage gaz" },
+  );
+  sauver();
+}
+
+/* ---------------- Clics globaux ---------------- */
 document.addEventListener("click", (e) => {
+  const lien = e.target.closest("[data-aller]");
+  if (lien) { e.preventDefault(); return aller(lien.dataset.aller); }
   const carte = e.target.closest("[data-demande]");
-  if (carte) return aller("demandes-fiche", carte.dataset.demande);
+  if (carte) { e.preventDefault(); return aller("demandes-fiche", carte.dataset.demande); }
+  const ligne = e.target.closest("[data-client]");
+  if (ligne) { e.preventDefault(); return aller("clients-fiche", ligne.dataset.client); }
   const f = e.target.closest("[data-filtre-demandes]");
   if (f) return aller("demandes", f.dataset.filtreDemandes);
   const b = e.target.closest("[data-action]");
   if (!b) return;
   const a = b.dataset.action;
+  const cible = b.dataset.id;
+
+  if (a === "nouveau-client") aller("clients-fiche");
+  if (a === "nouveau-rdv") {
+    if (!db.clients.length) { alert("Ajoutez d'abord un client."); return aller("clients-fiche"); }
+    ouvrirRdv(b.dataset.pour);
+  }
+  if (a === "suppr-rdv" && confirm("Retirer ce rendez-vous de l'appli ? (Pensez à le supprimer aussi dans Google Agenda.)")) {
+    db.rdv = db.rdv.filter((r) => r.id !== cible);
+    sauver();
+    rafraichir();
+  }
+  if (a === "suppr-client") {
+    if (!confirm("Supprimer ce client et ses rendez-vous de l'appli ? (Il reste dans Indy s'il y a été importé.)")) return;
+    db.clients = db.clients.filter((c) => c.id !== cible);
+    db.rdv = db.rdv.filter((r) => r.clientId !== cible);
+    db.demandes.forEach((d) => { if (d.clientId === cible) delete d.clientId; });
+    sauver(); aller("clients");
+  }
+  if (a === "export-indy") ouvrirExportIndy();
+  if (a === "copier-indy") { const c = client(cible); if (c) copier(texteIndy(c), b, b.textContent); }
+  if (a === "marquer-indy") {
+    const c = client(cible);
+    if (c) { c.exporteIndy = c.exporteIndy ? "" : aujourdhui(); sauver(); aller("clients-fiche", c.id); }
+  }
+
+  // Demandes
   if (a === "actualiser-demandes") {
     b.disabled = true;
     b.textContent = "Vérification…";
@@ -973,14 +806,38 @@ document.addEventListener("click", (e) => {
       const etat = $("#etat-synchro");
       if (etat && !erreurSynchro) etat.textContent += n ? ` — ${n} nouvelle(s) demande(s)` : " — rien de nouveau";
     });
-    return;
   }
-  const dem = b.dataset.id && a.startsWith("demande-") && db.demandes.find((d) => d.id === Number(b.dataset.id));
-  if (!dem) return;
-  if (a === "demande-client") { const c = creerClientDepuisDemande(dem); sauver(); aller("clients-fiche", c.id); }
-  if (a === "demande-devis") { const d = devisDepuisDemande(dem); aller("devis-fiche", d.id); }
-  if (a === "demande-traitee") { dem.statut = "traitee"; sauver(); aller("demandes"); }
-  if (a === "demande-nouvelle") { dem.statut = "nouvelle"; sauver(); aller("demandes-fiche", dem.id); }
+  const dem = cible && a.startsWith("demande-") && db.demandes.find((d) => d.id === Number(cible));
+  if (dem) {
+    if (a === "demande-client") { const c = creerClientDepuisDemande(dem); sauver(); aller("clients-fiche", c.id); }
+    if (a === "demande-rdv") {
+      const c = creerClientDepuisDemande(dem);
+      sauver();
+      aller("demandes-fiche", dem.id);
+      ouvrirRdv(c.id, () => { dem.statut = "traitee"; }); // « traitée » seulement si le rdv est planifié
+    }
+    if (a === "demande-traitee") { dem.statut = "traitee"; sauver(); aller("demandes"); }
+    if (a === "demande-nouvelle") { dem.statut = "nouvelle"; sauver(); aller("demandes-fiche", dem.id); }
+  }
+
+  // Réglages
+  if (a === "installer") installer();
+  if (a === "copier-script") copier($("#code-script").value, b, "Copier le code");
+  if (a === "deconnecter-site" && confirm("Ne plus recevoir les demandes du site dans cette appli ?")) {
+    db.reglages.urlDemandes = "";
+    sauver();
+    aller("reglages");
+  }
+  if (a === "export") {
+    db.reglages.derniereSauvegarde = aujourdhui();
+    sauver();
+    telecharger(`sauvegarde-gestion-${aujourdhui()}.json`, JSON.stringify(db, null, 2), "application/json");
+    if ($("#form-reglages")) setTimeout(() => aller("reglages"), 300);
+  }
+  if (a === "demo") { chargerDemo(); aller("accueil"); }
+  if (a === "tout-effacer" && confirm("Effacer TOUTES les données ? Exportez une sauvegarde avant.") && confirm("Vraiment tout effacer ?")) {
+    localStorage.removeItem(CLE); db = base(); aller("accueil");
+  }
 });
 
 // Clé secrète propre à l'atelier (copiée dans le script Google)
@@ -1034,7 +891,7 @@ window.addEventListener("online", synchroAuto);
 function rappelSauvegarde() {
   const d = db.reglages.derniereSauvegarde;
   const ancien = !d || plusJours(d, 14) < aujourdhui();
-  return ancien && (db.clients.length || db.devis.length) ? true : false;
+  return ancien && (db.clients.length || db.rdv.length) ? true : false;
 }
 
 aller("accueil");

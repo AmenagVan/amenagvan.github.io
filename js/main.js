@@ -10,6 +10,11 @@ document.querySelectorAll('[data-config="email"]').forEach((a) => {
   a.textContent = CONFIG.email;
   a.href = "mailto:" + CONFIG.email;
 });
+// Bouton « Prendre rendez-vous » : visible seulement si la page Google existe
+if (CONFIG.urlRendezVous) {
+  document.querySelectorAll('[data-config="rdv"]').forEach((a) => (a.href = CONFIG.urlRendezVous));
+  document.querySelectorAll("[data-rdv]").forEach((el) => (el.hidden = false));
+}
 document.querySelectorAll('[data-config="tel"]').forEach((a) => {
   a.textContent = CONFIG.tel;
   a.href = "tel:+33" + CONFIG.tel.replace(/\s/g, "").replace(/^0/, "");

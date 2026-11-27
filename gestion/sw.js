@@ -1,7 +1,7 @@
 /* Service worker : l'appli fonctionne même sans réseau (atelier, garage…).
    Stratégie « réseau d'abord » : en ligne on a toujours la dernière version,
    hors ligne on reprend la copie gardée en cache. */
-const CACHE = "gestion-av-v2";
+const CACHE = "gestion-av-v3";
 const FICHIERS = [
   "./",
   "./index.html",
@@ -12,7 +12,6 @@ const FICHIERS = [
   "./icone-192.png",
   "./icone-512.png",
   "./icone-180.png",
-  "../js/tarifs.js",
 ];
 
 self.addEventListener("install", (e) => {

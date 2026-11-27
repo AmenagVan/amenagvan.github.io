@@ -10,6 +10,9 @@ window.SITE = {
   // Adresse du script Google qui range chaque demande pour l'appli de gestion
   // (https://script.google.com/macros/s/…/exec). Vide = désactivé.
   urlDemandes: "",
+  // Page Google Agenda de prise de rendez-vous (https://calendar.app.google/…).
+  // Vide = le bouton « Prendre rendez-vous » reste caché.
+  urlRendezVous: "",
 };
 
 /* ----------------------------------------------------------
