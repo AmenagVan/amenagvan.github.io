@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Gestion — Aménag'Van (bêta)</title>
+  <!-- Appli installable (téléphone, tablette, ordi) -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#1f4d3a">
+  <link rel="icon" type="image/png" href="icone-192.png">
+  <link rel="apple-touch-icon" href="icone-180.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Gestion AV">
+  <link rel="stylesheet" href="app.css?v=5">
+</head>
+<body>
+  <header class="barre">
+    <div class="marque">Aménag'Van <span class="beta">gestion · bêta</span></div>
+    <nav id="menu" aria-label="Menu principal">
+      <button data-vue="accueil">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>
+        <span class="long">Tableau de bord</span><span class="court">Accueil</span>
+      </button>
+      <button data-vue="clients">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></svg>
+        <span>Clients</span>
+      </button>
+      <button data-vue="devis">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14H6z"/><path d="M9 12h7M9 16h7M9 8h4"/></svg>
+        <span>Devis</span>
+      </button>
+      <button data-vue="factures">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h14v18l-3-2-2 2-2-2-2 2-2-2-3 2z"/><path d="M9 9h6M9 13h6"/></svg>
+        <span>Factures</span>
+      </button>
+      <button data-vue="reglages">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg>
+        <span>Réglages</span>
+      </button>
+    </nav>
+  </header>
+
+  <div id="bandeau-installer" class="bandeau" hidden>
+    <span>Installer l'appli sur cet appareil ?</span>
+    <button class="btn petit" id="btn-installer">Installer</button>
+    <button class="btn secondaire petit" id="btn-installer-non">Plus tard</button>
+  </div>
+
+  <main id="vue"></main>
+
+  <!-- Document imprimable (devis / facture) -->
+  <section id="impression" aria-hidden="true"></section>
+
+  <dialog id="fenetre"><form method="dialog" id="fenetre-form"></form></dialog>
+
+  <!-- Taux horaire et mention TVA : même source que le site -->
+  <script src="../js/tarifs.js"></script>
+  <script src="app.js?v=3"></script>
+</body>
+</html>

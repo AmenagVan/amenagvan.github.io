@@ -1,4 +1,5 @@
 User-agent: *
 Allow: /
+Disallow: /gestion/
 
 Sitemap: https://amenagvan.github.io/sitemap.xml
