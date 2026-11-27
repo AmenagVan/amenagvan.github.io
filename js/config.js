@@ -7,6 +7,28 @@ window.SITE = {
   // Clé d'accès Web3Forms (reçue par e-mail sur web3forms.com).
   // Ce n'est pas un mot de passe : elle peut être visible dans le code.
   web3formsKey: "bb2bcd9a-a4c6-4c42-aebf-2e8eb74dbe2b",
+  // Adresse du script Google qui range chaque demande pour l'appli de gestion
+  // (https://script.google.com/macros/s/…/exec). Vide = désactivé.
+  urlDemandes: "",
+};
+
+/* ----------------------------------------------------------
+   Copie de la demande vers l'appli de gestion (script Google gratuit).
+   Envoi « sans attendre » : il ne bloque jamais le formulaire et une
+   panne de Google n'empêche pas l'e-mail Web3Forms de partir.
+   ---------------------------------------------------------- */
+window.SITE.copierVersAppli = function (champs) {
+  const url = window.SITE.urlDemandes;
+  if (!url) return;
+  try {
+    fetch(url, {
+      method: "POST",
+      mode: "no-cors",               // Google ne renvoie pas d'en-têtes CORS sur POST
+      keepalive: true,               // continue même si la page change (messagerie de secours)
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ champs }),
+    }).catch(() => {});
+  } catch (e) { /* jamais bloquant */ }
 };
 
 /* ----------------------------------------------------------
@@ -23,6 +45,7 @@ window.SITE = {
    du visiteur.
    ---------------------------------------------------------- */
 window.SITE.envoyer = async function (champs) {
+  window.SITE.copierVersAppli(champs);
   if (!window.SITE.web3formsKey) throw new Error("Clé Web3Forms manquante");
   const donnees = {
     access_key: window.SITE.web3formsKey,

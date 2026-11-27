@@ -1,12 +1,13 @@
 /* Service worker : l'appli fonctionne même sans réseau (atelier, garage…).
    Stratégie « réseau d'abord » : en ligne on a toujours la dernière version,
    hors ligne on reprend la copie gardée en cache. */
-const CACHE = "gestion-av-v1";
+const CACHE = "gestion-av-v2";
 const FICHIERS = [
   "./",
   "./index.html",
   "./app.css",
   "./app.js",
+  "./script-google.js",
   "./manifest.webmanifest",
   "./icone-192.png",
   "./icone-512.png",

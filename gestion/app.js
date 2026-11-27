@@ -25,10 +25,15 @@ function base() {
       iban: "",
       prochainDevis: 1,
       prochaineFacture: 1,
+      urlDemandes: "",
+      cleDemandes: "",
+      dernierIdDemande: 0,
+      derniereSynchro: "",
     },
     clients: [],
     devis: [],
     factures: [],
+    demandes: [],
   };
 }
 
@@ -103,6 +108,7 @@ function aller(nom, ...args) {
   );
   $("#vue").innerHTML = "";
   VUES[nom](...args);
+  majPastilleMenu();
   window.scrollTo(0, 0);
 }
 $("#menu").addEventListener("click", (e) => {
@@ -126,6 +132,7 @@ VUES.accueil = () => {
     <h1>Tableau de bord</h1>
     ${rappelSauvegarde() ? `<div class="alerte">Pensez à <a href="#" data-aller="reglages">exporter une sauvegarde</a> : les données ne sont que sur cet appareil.</div>` : ""}
     ${incomplet ? `<div class="alerte">Pour des devis et factures valables, complétez <a href="#" data-aller="reglages">vos réglages</a> (nom du responsable, adresse, SIRET).</div>` : ""}
+    ${nouvellesDemandes() ? `<a href="#" class="alerte nouvelles" data-aller="demandes"><strong>${nouvellesDemandes()} nouvelle(s) demande(s)</strong> reçue(s) depuis le site → les voir</a>` : ""}
     <div class="tuiles">
       <div class="carte tuile"><div class="libelle">Encaissé en ${an}</div><div class="valeur">${euros(encaisse)}</div></div>
       <div class="carte tuile"><div class="libelle">Reste à encaisser</div><div class="valeur">${euros(aEncaisser)}</div></div>
@@ -550,6 +557,7 @@ function imprimer(genre, doc) {
 /* ---------------- Réglages & sauvegarde ---------------- */
 VUES.reglages = () => {
   const r = db.reglages;
+  if (!r.cleDemandes) { r.cleDemandes = cleAleatoire(); sauver(); }
   const champ = (k, label, extra = "") => `<label>${label}<input name="${k}" value="${esc(r[k])}" ${extra}></label>`;
   $("#vue").innerHTML = `
     <h1>Réglages</h1>
@@ -574,6 +582,36 @@ VUES.reglages = () => {
       <p class="note">Le taux horaire du site public est réglé dans <code>site/js/tarifs.js</code> (${euros(TARIFS.taux)} / h). Changer ce taux-ci ne modifie que les nouveaux devis.</p>
       <div class="barre-actions"><button class="btn" type="submit">Enregistrer</button></div>
     </form>
+
+    <h2 id="connexion-site">Recevoir les demandes du site</h2>
+    <div class="carte">
+      ${r.urlDemandes
+        ? `<p><strong>Connecté.</strong> Les demandes du site arrivent dans l'onglet « Demandes ». Dernière vérification : ${dateHeure(r.derniereSynchro)}.</p>`
+        : `<p>Gratuit : un petit script Google range chaque demande du site dans un tableau Google Sheets, et l'appli vient les chercher. Les e-mails continuent d'arriver comme avant.</p>`}
+      <details ${r.urlDemandes ? "" : "open"}>
+        <summary>Mise en place (une seule fois, 5 minutes)</summary>
+        <ol class="etapes">
+          <li>Sur <strong>sheets.google.com</strong> (connecté au compte Google de l'atelier), créez une feuille vide nommée « Demandes Aménag'Van ».</li>
+          <li>Menu <strong>Extensions → Apps Script</strong>. Effacez tout le code présent.</li>
+          <li>Collez ce code, puis cliquez sur l'icône 💾 Enregistrer :
+            <textarea id="code-script" readonly rows="6" spellcheck="false">${esc(window.codeScriptGoogle ? window.codeScriptGoogle(r.cleDemandes) : "")}</textarea>
+            <button type="button" class="btn secondaire petit" data-action="copier-script">Copier le code</button>
+          </li>
+          <li><strong>Déployer → Nouveau déploiement</strong> → type « Application Web ». « Exécuter en tant que » : <em>Moi</em> ; « Qui a accès » : <em>Tout le monde</em>. Cliquez sur Déployer et autorisez l'accès (Google affiche un avertissement : « Paramètres avancés » → « Accéder au projet »).</li>
+          <li>Copiez l'<strong>URL de l'application Web</strong> (elle finit par <code>/exec</code>) et collez-la ci-dessous.</li>
+          <li>Envoyez aussi cette URL à Claude : il l'ajoute au site (fichier <code>site/js/config.js</code>).</li>
+        </ol>
+      </details>
+      <form id="form-connexion" class="grille" style="margin-top:1rem">
+        <label class="plein">URL du script Google<input name="urlDemandes" type="url" inputmode="url" placeholder="https://script.google.com/macros/s/…/exec" value="${esc(r.urlDemandes)}"></label>
+        <div class="barre-actions plein" style="margin-top:0">
+          <button class="btn" type="submit">Enregistrer et tester</button>
+          ${r.urlDemandes ? `<button class="btn danger" type="button" data-action="deconnecter-site">Déconnecter</button>` : ""}
+        </div>
+        <p class="note plein" id="resultat-connexion" role="status"></p>
+      </form>
+      <p class="note">Sur un 2e appareil : restaurez une sauvegarde de celui-ci, l'adresse et la clé secrète sont incluses.</p>
+    </div>
 
     <h2>Installer sur téléphone ou tablette</h2>
     <div class="carte">
@@ -608,6 +646,21 @@ VUES.reglages = () => {
     sauver();
     alert("Réglages enregistrés.");
   });
+  $("#form-connexion").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const sortie = $("#resultat-connexion");
+    const url = new FormData(e.target).get("urlDemandes").trim();
+    if (url && !/^https:\/\/script\.google(usercontent)?\.com\/.+/.test(url)) {
+      sortie.textContent = "Cette adresse ne ressemble pas à une URL de script Google (https://script.google.com/macros/s/…/exec).";
+      return;
+    }
+    r.urlDemandes = url;
+    sauver();
+    if (!url) { sortie.textContent = "Adresse effacée."; return; }
+    sortie.textContent = "Test en cours…";
+    const n = await synchroDemandes();
+    sortie.textContent = erreurSynchro ? `Échec : ${erreurSynchro}` : `Connexion réussie ✓ ${n ? `${n} demande(s) récupérée(s).` : "Aucune demande pour l'instant."}`;
+  });
   $("#import").addEventListener("change", async (e) => {
     const fichier = e.target.files[0];
     if (!fichier) return;
@@ -617,44 +670,7 @@ VUES.reglages = () => {
       if (!confirm("Remplacer toutes les données actuelles par cette sauvegarde ?")) return;
       localStorage.setItem(CLE, JSON.stringify(d));
       db = charger();
-      /* ---------------- Appli installable (PWA) ---------------- */
-let invitationInstall = null;
-function estInstallee() {
-  return window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
-}
-async function installer() {
-  if (!invitationInstall) return;
-  invitationInstall.prompt();
-  await invitationInstall.userChoice;
-  invitationInstall = null;
-  $("#bandeau-installer").hidden = true;
-}
-window.addEventListener("beforeinstallprompt", (e) => {
-  e.preventDefault();
-  invitationInstall = e;
-  if (localStorage.getItem(CLE + "-pas-installer") !== aujourdhui()) $("#bandeau-installer").hidden = false;
-});
-window.addEventListener("appinstalled", () => { $("#bandeau-installer").hidden = true; invitationInstall = null; });
-$("#btn-installer").addEventListener("click", installer);
-$("#btn-installer-non").addEventListener("click", () => {
-  $("#bandeau-installer").hidden = true;
-  localStorage.setItem(CLE + "-pas-installer", aujourdhui());
-});
-
-if ("serviceWorker" in navigator && location.protocol !== "file:") {
-  navigator.serviceWorker.register("sw.js").catch((e) => console.warn("Mode hors ligne indisponible :", e));
-}
-// Demande au navigateur de ne jamais effacer les données de l'appli tout seul
-navigator.storage?.persist?.();
-
-// Rappel de sauvegarde si la dernière date de plus de 14 jours
-function rappelSauvegarde() {
-  const d = db.reglages.derniereSauvegarde;
-  const ancien = !d || plusJours(d, 14) < aujourdhui();
-  return ancien && (db.clients.length || db.devis.length) ? true : false;
-}
-
-aller("accueil");
+      aller("accueil");
     } catch {
       alert("Ce fichier n'est pas une sauvegarde valide.");
     }
@@ -728,6 +744,16 @@ document.addEventListener("click", (e) => {
     sauver(); aller("clients");
   }
   if (a === "installer") installer();
+  if (a === "copier-script") {
+    const zone = $("#code-script");
+    const fini = () => { b.textContent = "Code copié ✓"; setTimeout(() => (b.textContent = "Copier le code"), 2500); };
+    (navigator.clipboard?.writeText(zone.value) || Promise.reject()).then(fini, () => { zone.select(); document.execCommand("copy"); fini(); });
+  }
+  if (a === "deconnecter-site" && confirm("Ne plus recevoir les demandes du site dans cette appli ?")) {
+    db.reglages.urlDemandes = "";
+    sauver();
+    aller("reglages");
+  }
   if (a === "export") {
     db.reglages.derniereSauvegarde = aujourdhui();
     sauver();
@@ -743,46 +769,226 @@ document.addEventListener("click", (e) => {
   }
   if (a === "demo") { chargerDemo(); aller("accueil"); }
   if (a === "tout-effacer" && confirm("Effacer TOUTES les données ? Exportez une sauvegarde avant.") && confirm("Vraiment tout effacer ?")) {
-    localStorage.removeItem(CLE); db = base(); /* ---------------- Appli installable (PWA) ---------------- */
-let invitationInstall = null;
-function estInstallee() {
-  return window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
-}
-async function installer() {
-  if (!invitationInstall) return;
-  invitationInstall.prompt();
-  await invitationInstall.userChoice;
-  invitationInstall = null;
-  $("#bandeau-installer").hidden = true;
-}
-window.addEventListener("beforeinstallprompt", (e) => {
-  e.preventDefault();
-  invitationInstall = e;
-  if (localStorage.getItem(CLE + "-pas-installer") !== aujourdhui()) $("#bandeau-installer").hidden = false;
-});
-window.addEventListener("appinstalled", () => { $("#bandeau-installer").hidden = true; invitationInstall = null; });
-$("#btn-installer").addEventListener("click", installer);
-$("#btn-installer-non").addEventListener("click", () => {
-  $("#bandeau-installer").hidden = true;
-  localStorage.setItem(CLE + "-pas-installer", aujourdhui());
-});
-
-if ("serviceWorker" in navigator && location.protocol !== "file:") {
-  navigator.serviceWorker.register("sw.js").catch((e) => console.warn("Mode hors ligne indisponible :", e));
-}
-// Demande au navigateur de ne jamais effacer les données de l'appli tout seul
-navigator.storage?.persist?.();
-
-// Rappel de sauvegarde si la dernière date de plus de 14 jours
-function rappelSauvegarde() {
-  const d = db.reglages.derniereSauvegarde;
-  const ancien = !d || plusJours(d, 14) < aujourdhui();
-  return ancien && (db.clients.length || db.devis.length) ? true : false;
-}
-
-aller("accueil");
+    localStorage.removeItem(CLE); db = base(); aller("accueil");
   }
 });
+
+/* ---------------- Demandes reçues depuis le site ---------------- */
+// Lecture d'une valeur de la demande (ignore les champs vides ou « — »)
+function champ(dem, ...cles) {
+  for (const k of cles) {
+    const v = String(dem.champs?.[k] ?? "").trim();
+    if (v && v !== "—" && v !== "-") return v;
+  }
+  return "";
+}
+const infoDemande = (dem) => ({
+  nom: champ(dem, "Nom") || "Sans nom",
+  email: champ(dem, "email", "E-mail"),
+  tel: champ(dem, "Téléphone"),
+  type: champ(dem, "Type de demande") || "Demande",
+  vehicule: champ(dem, "Véhicule", "Gabarit", "Fourgon"),
+  message: champ(dem, "Message", "Message du client"),
+  ref: champ(dem, "Référence"),
+  prestations: champ(dem, "Prestations"),
+});
+const chiffres = (t) => String(t || "").replace(/\D/g, "");
+function clientDeDemande(dem) {
+  if (dem.clientId && client(dem.clientId)) return client(dem.clientId);
+  const i = infoDemande(dem);
+  return db.clients.find((c) =>
+    (i.email && c.email && c.email.trim().toLowerCase() === i.email.toLowerCase()) ||
+    (chiffres(i.tel).length >= 9 && chiffres(c.tel).length >= 9 && chiffres(c.tel).slice(-9) === chiffres(i.tel).slice(-9))
+  );
+}
+const nouvellesDemandes = () => db.demandes.filter((d) => d.statut === "nouvelle").length;
+function majPastilleMenu() {
+  const b = $('#menu button[data-vue="demandes"] .compteur');
+  if (!b) return;
+  const n = nouvellesDemandes();
+  b.textContent = n;
+  b.hidden = !n;
+}
+const dateHeure = (iso) => (iso ? new Date(iso).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" }) : "—");
+
+let synchroEnCours = null;
+let erreurSynchro = "";
+// Va chercher les nouvelles demandes sur le script Google. Renvoie le nombre de nouveautés.
+function synchroDemandes() {
+  const r = db.reglages;
+  if (!r.urlDemandes || !r.cleDemandes) return Promise.resolve(0);
+  if (synchroEnCours) return synchroEnCours;
+  synchroEnCours = (async () => {
+    const stop = new AbortController();
+    const minuteur = setTimeout(() => stop.abort(), 20000);
+    try {
+      const url = `${r.urlDemandes}?cle=${encodeURIComponent(r.cleDemandes)}&depuis=${Number(r.dernierIdDemande) || 0}`;
+      const rep = await fetch(url, { signal: stop.signal, cache: "no-store" });
+      const json = await rep.json();
+      if (!json.ok) throw new Error(json.erreur === "cle" ? "Clé refusée : le code du script Google ne correspond pas à cet appareil." : "Réponse invalide du script Google.");
+      let ajout = 0;
+      for (const d of json.demandes || []) {
+        const idNum = Number(d.id);
+        if (!idNum || db.demandes.some((x) => x.id === idNum)) continue;
+        db.demandes.push({ id: idNum, date: d.date, champs: d.champs || {}, statut: "nouvelle" });
+        r.dernierIdDemande = Math.max(Number(r.dernierIdDemande) || 0, idNum);
+        ajout++;
+      }
+      r.derniereSynchro = new Date().toISOString();
+      erreurSynchro = "";
+      sauver();
+      return ajout;
+    } catch (e) {
+      erreurSynchro = e.name === "AbortError" ? "Le script Google ne répond pas (réseau ?)."
+        : e instanceof SyntaxError ? "L'adresse du script ne renvoie pas les demandes. Vérifiez qu'elle finit par /exec et que l'accès est « Tout le monde »."
+        : navigator.onLine === false ? "Pas de connexion internet : les demandes seront récupérées au retour du réseau."
+        : e instanceof TypeError ? "Impossible de joindre le script Google. Vérifiez la connexion internet et l'adresse du script."
+        : e.message || "Erreur de connexion.";
+      return 0;
+    } finally {
+      clearTimeout(minuteur);
+      synchroEnCours = null;
+      majPastilleMenu();
+    }
+  })();
+  return synchroEnCours;
+}
+
+VUES.demandes = (filtre = "nouvelle") => {
+  const r = db.reglages;
+  const configure = r.urlDemandes && r.cleDemandes;
+  const liste = db.demandes
+    .filter((d) => filtre === "toutes" || d.statut === filtre)
+    .sort((a, b) => b.id - a.id);
+  const onglet = (k, t) => `<button class="btn ${filtre === k ? "" : "secondaire"} petit" data-filtre-demandes="${k}">${t}</button>`;
+  $("#vue").innerHTML = `
+    <div class="entete">
+      <h1>Demandes du site</h1>
+      ${configure ? `<button class="btn" data-action="actualiser-demandes">Actualiser</button>` : ""}
+    </div>
+    ${!configure ? `<div class="alerte">Les demandes du site n'arrivent pas encore ici. Suivez les étapes dans <a href="#" data-aller="reglages">Réglages → Recevoir les demandes du site</a> (gratuit, 5 minutes).</div>` : ""}
+    ${erreurSynchro ? `<div class="alerte">${esc(erreurSynchro)}</div>` : ""}
+    ${configure ? `<p class="note" id="etat-synchro">Dernière vérification : ${dateHeure(r.derniereSynchro)}</p>` : ""}
+    <div class="barre-actions" style="margin:0 0 1rem">
+      ${onglet("nouvelle", `Nouvelles (${nouvellesDemandes()})`)}${onglet("traitee", "Traitées")}${onglet("toutes", "Toutes")}
+    </div>
+    ${liste.length ? `<div class="cartes-demandes">${liste.map((d) => {
+      const i = infoDemande(d);
+      return `<article class="carte demande cliquable" data-demande="${d.id}">
+        <div class="entete"><strong>${esc(i.nom)}</strong>${d.statut === "nouvelle" ? `<span class="pastille envoye">Nouvelle</span>` : `<span class="pastille accepte">Traitée</span>`}</div>
+        <div class="note">${esc(i.type)} · ${dateHeure(d.date)}${i.ref ? ` · ${esc(i.ref)}` : ""}</div>
+        ${i.vehicule ? `<div>${esc(i.vehicule)}</div>` : ""}
+        ${i.message ? `<p class="extrait">${esc(i.message)}</p>` : ""}
+      </article>`;
+    }).join("")}</div>`
+    : `<div class="carte vide">${filtre === "nouvelle" ? "Aucune nouvelle demande." : "Aucune demande."}</div>`}
+  `;
+};
+
+VUES["demandes-fiche"] = (did) => {
+  const dem = db.demandes.find((d) => d.id === Number(did));
+  if (!dem) return aller("demandes");
+  const i = infoDemande(dem);
+  const cli = clientDeDemande(dem);
+  const devis = dem.devisId && db.devis.find((x) => x.id === dem.devisId);
+  const lignes = Object.entries(dem.champs || {}).filter(([k]) => !k.startsWith("_"));
+  const telLien = chiffres(i.tel).replace(/^33/, "+33");
+  $("#vue").innerHTML = `
+    <div class="entete">
+      <h1>${esc(i.nom)}</h1>
+      ${dem.statut === "nouvelle" ? `<span class="pastille envoye">Nouvelle</span>` : `<span class="pastille accepte">Traitée</span>`}
+    </div>
+    <p class="note">${esc(i.type)} · reçue le ${dateHeure(dem.date)}</p>
+    <div class="barre-actions" style="margin:0 0 1rem">
+      ${telLien ? `<a class="btn secondaire" href="tel:${esc(telLien)}">Appeler ${esc(i.tel)}</a>` : ""}
+      ${i.email ? `<a class="btn secondaire" href="mailto:${esc(i.email)}?subject=${encodeURIComponent("Votre demande — Aménag'Van")}">Écrire un e-mail</a>` : ""}
+    </div>
+    <div class="carte">
+      <dl class="details">${lignes.map(([k, v]) => `<dt>${esc(k === "email" ? "E-mail" : k)}</dt><dd>${esc(v)}</dd>`).join("")}</dl>
+    </div>
+    <div class="barre-actions">
+      ${cli ? `<button class="btn secondaire" data-client="${cli.id}">Fiche client : ${esc(cli.nom)}</button>`
+            : `<button class="btn secondaire" data-action="demande-client" data-id="${dem.id}">Créer le client</button>`}
+      ${devis ? `<button class="btn secondaire" data-devis="${devis.id}">Voir le devis ${esc(devis.numero)}</button>`
+              : `<button class="btn" data-action="demande-devis" data-id="${dem.id}">Préparer un devis</button>`}
+      ${dem.statut === "nouvelle"
+        ? `<button class="btn secondaire" data-action="demande-traitee" data-id="${dem.id}">Marquer traitée</button>`
+        : `<button class="btn secondaire" data-action="demande-nouvelle" data-id="${dem.id}">Remettre en « nouvelle »</button>`}
+      <button class="btn secondaire" data-aller="demandes">Retour</button>
+    </div>
+    ${cli && !dem.clientId ? `<p class="note">Client déjà connu (même e-mail ou même téléphone).</p>` : ""}
+  `;
+};
+
+// Crée (ou retrouve) le client correspondant à une demande
+function creerClientDepuisDemande(dem) {
+  const existant = clientDeDemande(dem);
+  if (existant) { dem.clientId = existant.id; return existant; }
+  const i = infoDemande(dem);
+  const notes = [i.type, i.prestations && `Prestations : ${i.prestations}`, i.message, i.ref && `Réf. site : ${i.ref}`].filter(Boolean).join("\n");
+  const c = { id: id(), nom: i.nom, tel: i.tel, email: i.email, adresse: "", vehicule: i.vehicule, immat: "", notes };
+  db.clients.push(c);
+  dem.clientId = c.id;
+  return c;
+}
+
+// Prépare un devis brouillon à partir de la demande (estimation du configurateur si présente)
+function devisDepuisDemande(dem) {
+  const c = creerClientDepuisDemande(dem);
+  const i = infoDemande(dem);
+  const r = db.reglages;
+  const lignes = [];
+  const h = champ(dem, "Main d'œuvre estimée").match(/\(([\d\s.,]+?)\s*h\b/);
+  lignes.push({ type: "mo", desc: "Main d'œuvre", qte: h ? nb(h[1].replace(/\s/g, "")) : 1, pu: r.taux });
+  const mat = champ(dem, "Matériel estimé");
+  if (mat) lignes.push({ type: "info", desc: `Matériel acheté par le client (estimation : ${mat})`, qte: "", pu: 0 });
+  const date = aujourdhui();
+  const d = {
+    id: id(), numero: numero("D", r.prochainDevis, date), clientId: c.id, date,
+    objet: i.prestations ? `${i.type} : ${i.prestations}` : i.type,
+    statut: "brouillon", remarques: i.ref ? `Suite à votre demande ${i.ref} sur le site.` : "", lignes,
+  };
+  r.prochainDevis++;
+  db.devis.push(d);
+  dem.devisId = d.id;
+  dem.statut = "traitee";
+  sauver();
+  return d;
+}
+
+document.addEventListener("click", (e) => {
+  const carte = e.target.closest("[data-demande]");
+  if (carte) return aller("demandes-fiche", carte.dataset.demande);
+  const f = e.target.closest("[data-filtre-demandes]");
+  if (f) return aller("demandes", f.dataset.filtreDemandes);
+  const b = e.target.closest("[data-action]");
+  if (!b) return;
+  const a = b.dataset.action;
+  if (a === "actualiser-demandes") {
+    b.disabled = true;
+    b.textContent = "Vérification…";
+    synchroDemandes().then((n) => {
+      if (!$('[data-action="actualiser-demandes"]')) return; // l'utilisateur a changé d'écran
+      aller("demandes");
+      const etat = $("#etat-synchro");
+      if (etat && !erreurSynchro) etat.textContent += n ? ` — ${n} nouvelle(s) demande(s)` : " — rien de nouveau";
+    });
+    return;
+  }
+  const dem = b.dataset.id && a.startsWith("demande-") && db.demandes.find((d) => d.id === Number(b.dataset.id));
+  if (!dem) return;
+  if (a === "demande-client") { const c = creerClientDepuisDemande(dem); sauver(); aller("clients-fiche", c.id); }
+  if (a === "demande-devis") { const d = devisDepuisDemande(dem); aller("devis-fiche", d.id); }
+  if (a === "demande-traitee") { dem.statut = "traitee"; sauver(); aller("demandes"); }
+  if (a === "demande-nouvelle") { dem.statut = "nouvelle"; sauver(); aller("demandes-fiche", dem.id); }
+});
+
+// Clé secrète propre à l'atelier (copiée dans le script Google)
+function cleAleatoire() {
+  const t = new Uint8Array(18);
+  crypto.getRandomValues(t);
+  return Array.from(t, (x) => x.toString(16).padStart(2, "0")).join("");
+}
 
 /* ---------------- Appli installable (PWA) ---------------- */
 let invitationInstall = null;
@@ -814,6 +1020,16 @@ if ("serviceWorker" in navigator && location.protocol !== "file:") {
 // Demande au navigateur de ne jamais effacer les données de l'appli tout seul
 navigator.storage?.persist?.();
 
+function synchroAuto() {
+  synchroDemandes().then((n) => {
+    if (!n) return;
+    const vue = $("#menu .actif")?.dataset.vue;
+    if (vue === "accueil" || (vue === "demandes" && !$(".details"))) aller(vue);
+  });
+}
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") synchroAuto(); });
+window.addEventListener("online", synchroAuto);
+
 // Rappel de sauvegarde si la dernière date de plus de 14 jours
 function rappelSauvegarde() {
   const d = db.reglages.derniereSauvegarde;
@@ -822,3 +1038,4 @@ function rappelSauvegarde() {
 }
 
 aller("accueil");
+synchroAuto();
